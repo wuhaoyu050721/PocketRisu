@@ -29,7 +29,7 @@
         </button>
         <button class="nav-tab" class:active={activeTab === 3} onclick={handleSettings}>
             <UserCircleIcon />
-            <span>我的</span>
+            <span>设置</span>
         </button>
     </nav>
 

@@ -22,10 +22,11 @@
     import InlayImageGallery from "./Pages/InlayImageGallery.svelte";
     import RemoteAccessSettings from "./Pages/RemoteAccessSettings.svelte";
     import { isLite } from "src/ts/lite";
-    import { additionalSettingsMenu, MobileGUI, SettingsMenuIndex, settingsOpen } from "src/ts/stores.svelte";
+    import { additionalSettingsMenu, MobileGUI, SettingsMenuIndex, settingsOpen, desktopTabStore } from "src/ts/stores.svelte";
     import { DBState } from "src/ts/stores.svelte";
     import PluginDefinedIcon from "../Others/PluginDefinedIcon.svelte";
     import { CircleXIcon } from "@lucide/svelte";
+    import DesktopBottomNav from "../Mobile/DesktopBottomNav.svelte";
 
     if(window.innerWidth >= 900 && $SettingsMenuIndex === -1 && !$MobileGUI){
         $SettingsMenuIndex = 1
@@ -174,6 +175,12 @@
             {/key}
         </div>
     {/if}
+    <DesktopBottomNav activeTab={3} onTabChange={(i) => {
+        if (i !== 3) {
+            $desktopTabStore = i;
+            settingsOpen.set(false);
+        }
+    }} />
 </div>
 
 <style>
@@ -182,6 +189,9 @@
         inset: 0;
         z-index: 50;
         background: var(--risu-theme-bgcolor);
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 0;
         color: var(--risu-theme-textcolor);
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
         overflow-y: auto;

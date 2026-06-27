@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { DynamicGUI, settingsOpen, sideBarStore, openPresetList, openModelPresetList, openModelProfileBrowser, openPersonaList, personaSelectCallback, openHypaV3PresetList, openThemePresetList, MobileGUI, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, popUpEditorStore, authStore } from './ts/stores.svelte';
+    import { DynamicGUI, settingsOpen, sideBarStore, openPresetList, openModelPresetList, openModelProfileBrowser, openPersonaList, personaSelectCallback, openHypaV3PresetList, openThemePresetList, MobileGUI, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, popUpEditorStore, authStore, desktopTabStore } from './ts/stores.svelte';
     import LoginPage from './lib/Auth/LoginPage.svelte';
     import RegisterPage from './lib/Auth/RegisterPage.svelte';
     import { getAuthConfig, logout, getStoredToken, getUserFromToken, type AuthUser } from './ts/auth';
@@ -44,8 +44,8 @@
     import sendSound from './etc/send.mp3'
 
     let gridOpen = $state(false)
-    let desktopTab = $state(0) // 0=聊天 1=角色 2=发现 3=我的
     let aprilFools = $state(new Date().getMonth() === 3 && new Date().getDate() === 1)
+    $effect(() => { if ($desktopTabStore === 1) gridOpen = true; else gridOpen = false; });
     let aprilFoolsPage = $state(0)
     let keepingSessionAlive = $state(false)
 
@@ -261,17 +261,17 @@
             <div class="desktop-main">
                 {#if gridOpen}
                     <GridChars endGrid={() => {gridOpen = false}} />
-                {:else if desktopTab === 2}
+                {:else if $desktopTabStore === 2}
                     <DiscoverPage />
                 {:else}
                     <ChatScreen />
                 {/if}
             </div>
             <DesktopBottomNav
-                activeTab={desktopTab}
+                activeTab={$desktopTabStore}
                 onTabChange={(i) => {
                     gridOpen = false;
-                    desktopTab = i;
+                    $desktopTabStore = i;
                     if (i === 1) { gridOpen = true; }
                 }}
             />
