@@ -3512,13 +3512,14 @@ function resolveAssetPayload(key, rawValue) {
 
 const ASSET_CACHE_CONTROL = 'private, max-age=86400'
 const THUMB_MAX_SIDE = 320;
+const AVATAR_THUMB_MAX_SIDE = 160;
 const THUMB_QUALITY = 75;
 const THUMB_IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp']);
 
-async function generateThumbnail(buffer) {
+async function generateThumbnail(buffer, maxSide = THUMB_MAX_SIDE) {
     const vips = await getVips()
-    const img = vips.Image.thumbnailBuffer(buffer, THUMB_MAX_SIDE, {
-        height: THUMB_MAX_SIDE,
+    const img = vips.Image.thumbnailBuffer(buffer, maxSide, {
+        height: maxSide,
         size: 'down',
     })
     try {
@@ -3532,6 +3533,7 @@ async function generateThumbnail(buffer) {
 app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
     try {
         const key = Buffer.from(req.params.hexKey, 'hex').toString('utf-8')
+        const wantsThumbnail = req.query.thumb === '1'
 
         if (key.startsWith('inlay/')) {
             const id = key.slice('inlay/'.length)
@@ -3576,8 +3578,8 @@ app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
         const updatedAt = await kvGetUpdatedAt(key)
         if (updatedAt === null) return res.status(404).set('Cache-Control', 'no-store').end()
 
-        const etag = `"${updatedAt}"`
-        if (req.headers['if-none-match'] === etag) {
+        const responseEtag = wantsThumbnail ? `"thumb-${updatedAt}"` : `"${updatedAt}"`
+        if (req.headers['if-none-match'] === responseEtag) {
             return res.status(304).set('Cache-Control', ASSET_CACHE_CONTROL).end()
         }
 
@@ -3585,12 +3587,22 @@ app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
         if (!data) return res.status(404).set('Cache-Control', 'no-store').end()
 
         const { binary, contentType } = resolveAssetPayload(key, data)
+        let responseBody = binary
+        let responseType = contentType
+        if (wantsThumbnail && contentType.startsWith('image/')) {
+            try {
+                responseBody = await generateThumbnail(binary, AVATAR_THUMB_MAX_SIDE)
+                responseType = 'image/webp'
+            } catch (error) {
+                logger.warn('[Asset] Thumbnail generation failed, serving original:', error?.message || error)
+            }
+        }
         res.set({
-            'Content-Type': contentType,
+            'Content-Type': responseType,
             'Cache-Control': ASSET_CACHE_CONTROL,
-            'ETag': etag,
+            'ETag': responseEtag,
         })
-        res.send(binary)
+        res.send(responseBody)
     } catch (error) {
         logger.error('[Asset] Failed to serve asset:', error);
         res.status(500).end()

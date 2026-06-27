@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import { XIcon, TrashIcon, PencilIcon, BookOpenCheckIcon, BookLockIcon, ArrowRightIcon, BookmarkIcon } from "@lucide/svelte";
     import Chat from "../ChatScreens/Chat.svelte";
-    import { getCharImage } from "src/ts/characters";
+    import { getCharThumbnail } from "src/ts/characters";
     import { findCharacterbyId, getUserName, getUserIcon } from "src/ts/util";
     import { createSimpleCharacter, bookmarkListOpen, DBState, selectedCharID, ScrollToMessageStore } from "src/ts/stores.svelte";
     import { language } from "src/lang";
@@ -201,7 +201,7 @@
                                     idx={msg.originalIndex}
                                     message={msg.data}
                                     name={msg.role === 'user' ? getUserName() : (msg.speaker?.name ?? chara.name)}
-                                    img={msg.role === 'user' ? getCharImage(getUserIcon(), 'css') : getCharImage(msg.speaker?.image ?? chara.image, 'css')}
+                                    img={msg.role === 'user' ? getCharThumbnail(getUserIcon(), 'css') : getCharThumbnail(msg.speaker?.image ?? chara.image, 'css')}
                                     role={msg.role}
                                     messageGenerationInfo={msg.generationInfo}
                                     rerollIcon={false}

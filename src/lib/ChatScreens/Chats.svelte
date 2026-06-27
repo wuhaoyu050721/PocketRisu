@@ -2,7 +2,7 @@
     import type { character, Message } from 'src/ts/storage/database.svelte';
     import { mount, onDestroy, unmount } from 'svelte';
     import Chat from './Chat.svelte';
-    import { getCharImage } from 'src/ts/characters';
+    import { getCharThumbnail } from 'src/ts/characters';
     import { createSimpleCharacter, DBState, selectedCharID, ReloadChatPointer } from 'src/ts/stores.svelte';
     import { chatFoldedStateMessageIndex } from 'src/ts/globalApi.svelte';
     import { get } from 'svelte/store';
@@ -67,8 +67,8 @@
 
         let nextHash = 0;
         let currentHashes: Set<number> = new Set();
-        const charImage = getCharImage(currentCharacter.image, 'css')
-        const userImage = getCharImage(userIcon, 'css')
+        const charImage = getCharThumbnail(currentCharacter.image, 'css')
+        const userImage = getCharThumbnail(userIcon, 'css')
         const simpleChar = createSimpleCharacter(currentCharacter);
         let loadStart = messages.length - 1
         let loadEnd = messages.length - loadPages

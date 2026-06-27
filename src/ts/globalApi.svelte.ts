@@ -134,12 +134,23 @@ function buildTimeoutSignal(signal: AbortSignal | undefined, timeoutMs: number |
  * @param {string} loc - The location of the file.
  * @returns {Promise<string>} - A promise that resolves to the source URL of the file.
  */
+function getNodeAssetUrl(loc: string): string {
+    return `/api/asset/${Buffer.from(loc, 'utf-8').toString('hex')}`
+}
+
+export async function getThumbnailFileSrc(loc: string): Promise<string> {
+    if ((globalThis as any).__NODE__) {
+        return `${getNodeAssetUrl(loc)}?thumb=1`
+    }
+    return getFileSrc(loc)
+}
+
 export async function getFileSrc(loc: string) {
     // NodeOnly: return a direct server URL instead of fetching + base64-encoding.
     // The browser will cache the response using HTTP Cache-Control headers,
     // so repeated renders (sidebar, chat) cost zero network after first load.
     if ((globalThis as any).__NODE__) {
-        return `/api/asset/${Buffer.from(loc, 'utf-8').toString('hex')}`
+        return getNodeAssetUrl(loc)
     }
     try {
         if (usingSw) {

@@ -2,7 +2,7 @@
     import { alertGenerationInfoStore } from "../../ts/alert";
     
     import { DBState } from 'src/ts/stores.svelte';
-    import { getCharImage } from '../../ts/characters';
+    import { getCharThumbnail } from '../../ts/characters';
     import { ParseMarkdown } from '../../ts/parser/parser.svelte';
     import BarIcon from '../SideBars/BarIcon.svelte';
     import { ChevronRightIcon, User } from '@lucide/svelte';
@@ -225,7 +225,7 @@
                 <div class="flex w-full items-start flex-wrap gap-2 justify-start">
                     {#each DBState.db.characters as char, i}
                         {#if char.image}
-                            {#await getCharImage(DBState.db.characters[i].image, 'css')}
+                            {#await getCharThumbnail(DBState.db.characters[i].image, 'css')}
                                 <BarIcon onClick={() => {
                                     alertStore.set({type: 'none',msg: char.chaId})
                                 }}>

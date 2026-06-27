@@ -8,7 +8,7 @@ import { checkNullish, findCharacterbyId, getUserName, selectMultipleFile, selec
 import { v4 as uuidv4, v4 } from 'uuid';
 import { getImageType } from "./media";
 import { MobileGUIStack, OpenRealmStore, selectedCharID } from "./stores.svelte";
-import { AppendableBuffer, changeChatTo, checkCharOrder, downloadFile, getFileSrc, requiresFullEncoderReload } from "./globalApi.svelte";
+import { AppendableBuffer, changeChatTo, checkCharOrder, downloadFile, getFileSrc, getThumbnailFileSrc, requiresFullEncoderReload } from "./globalApi.svelte";
 import { updateInlayScreen } from "./process/inlayScreen";
 import { parseMarkdownSafe } from "./parser/parser.svelte";
 import { translateHTML } from "./translator/translator";
@@ -56,6 +56,30 @@ export async function getCharImage(loc:string, type:'plain'|'css'|'contain'|'lgc
     else{
         return `background: url("${filesrc}");background-size: contain;background-repeat: no-repeat;background-position: center;`
     }
+}
+
+export async function getCharThumbnail(loc:string, type:'plain'|'css'|'contain'|'lgcss') {
+    const db = getDatabase()
+
+    if(db.hideAllImages){
+        return type === 'plain' ? '/none.webp' : ''
+    }
+
+    if(!loc || loc === ''){
+        return type === 'plain' ? null : ''
+    }
+
+    const filesrc = await getThumbnailFileSrc(loc)
+    if(type === 'plain'){
+        return filesrc
+    }
+    if(type === 'css'){
+        return `background: url("${filesrc}");background-size: cover;`
+    }
+    if(type === 'lgcss'){
+        return `background: url("${filesrc}");background-size: cover;height: 10.66rem;`
+    }
+    return `background: url("${filesrc}");background-size: contain;background-repeat: no-repeat;background-position: center;`
 }
 
 export async function selectCharImg(charIndex:number) {

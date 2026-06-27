@@ -12,7 +12,7 @@
     import { getAdditionalChatLoadPages, getInitialChatLoadPages } from 'src/ts/chatLoadPages';
     import { type Chat as ChatData, type Message } from "../../ts/storage/database.svelte";
     import { DBState, settingsOpen, SettingsMenuIndex } from 'src/ts/stores.svelte';
-    import { getCharImage } from "../../ts/characters";
+    import { getCharThumbnail } from "../../ts/characters";
     import { chatProcessStage, doingChat, sendChat } from "../../ts/process/index.svelte";
     import { ensureCurrentChatReady } from "../../ts/storage/chatStorage";
     import { sleep } from "../../ts/util";
@@ -90,7 +90,7 @@ import { isMobile } from 'src/ts/platform'
     // Load header avatar CSS asynchronously
     $effect(() => {
         if (currentCharacter?.image && !DBState.db.hideAllImages) {
-            getCharImage(currentCharacter.image, 'css').then(css => headerAvatarCss = css);
+            getCharThumbnail(currentCharacter.image, 'css').then(css => headerAvatarCss = css);
         } else {
             headerAvatarCss = '';
         }
@@ -1332,7 +1332,7 @@ import { isMobile } from 'src/ts/platform'
                     message={currentChatFmIndex === -1 ? DBState.db.characters[$selectedCharID].firstMessage :
                         DBState.db.characters[$selectedCharID].alternateGreetings[currentChatFmIndex]}
                     role='char'
-                    img={getCharImage(DBState.db.characters[$selectedCharID].image, 'css')}
+                    img={getCharThumbnail(DBState.db.characters[$selectedCharID].image, 'css')}
                     idx={-1}
                     altGreeting={DBState.db.characters[$selectedCharID].alternateGreetings.length > 0}
                     disabled={DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].firstMessageDisabled === true}

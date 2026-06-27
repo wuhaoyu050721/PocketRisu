@@ -8,7 +8,7 @@
     import TextAreaInput from "src/lib/UI/GUI/TextAreaInput.svelte";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
     import { alertConfirm, alertSelect } from "src/ts/alert";
-    import { getCharImage } from "src/ts/characters";
+    import { getCharImage, getCharThumbnail } from "src/ts/characters";
     import { changeUserPersona, exportUserPersona, importUserPersona, saveUserPersona, selectUserImg } from "src/ts/persona";
     import Sortable from 'sortablejs/modular/sortable.core.esm.js';
     import { onDestroy, onMount } from "svelte";
@@ -80,7 +80,7 @@
             {#if persona.icon === ''}
                 <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary" class:ring-3={i === DBState.db.selectedPersona}></div>
             {:else}
-                {#await getCharImage(persona.icon, 'css')}
+                {#await getCharThumbnail(persona.icon, 'css')}
                     <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary" class:ring-3={i === DBState.db.selectedPersona}></div>
                 {:then im} 
                     <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary" style={im} class:ring-3={i === DBState.db.selectedPersona}></div>                

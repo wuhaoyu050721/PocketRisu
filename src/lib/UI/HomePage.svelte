@@ -1,7 +1,7 @@
 <script lang="ts">
     import { PlusIcon, SearchIcon } from "@lucide/svelte";
     import { DBState, selectedCharID } from 'src/ts/stores.svelte';
-    import { addCharacter, changeChar, getCharImage } from "src/ts/characters";
+    import { addCharacter, changeChar, getCharThumbnail } from "src/ts/characters";
     import { makeAgoText } from "src/ts/util";
     import { language } from "src/lang";
     import { alertConfirm } from "src/ts/alert";
@@ -45,7 +45,7 @@
     let avatarStyles = $state<Record<number, string>>({});
     $effect(() => {
         Promise.all(allChars.map(async c => {
-            const css = c.image ? await getCharImage(c.image, 'css') : '';
+            const css = c.image ? await getCharThumbnail(c.image, 'css') : '';
             return { index: c.index, css };
         })).then(r => {
             const m: Record<number, string> = {};

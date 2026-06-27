@@ -14,6 +14,16 @@ export default defineConfig(({command, mode}) => {
       '__APP_VERSION__': JSON.stringify(pkg.version),
     },
     plugins: [
+      command === 'serve' ? {
+        name: 'node-dev-environment',
+        transformIndexHtml() {
+          return [{
+            tag: 'script',
+            children: 'globalThis.__NODE__ = true; globalThis.__PATCH_SYNC__ = true;',
+            injectTo: 'head-prepend' as const,
+          }]
+        },
+      } : null,
       svelte({
         preprocess: vitePreprocess(),
         onwarn: (warning, handler) => {
