@@ -1,0 +1,18 @@
+- main [ref=e3]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - img [ref=e8]
+      - heading "欢迎回来" [level=1] [ref=e9]
+      - paragraph [ref=e10]: 登录以继续与你的 AI 角色对话
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: 用户名
+        - textbox "用户名" [ref=e14]
+      - generic [ref=e15]:
+        - generic [ref=e16]: 密码
+        - textbox "密码" [ref=e17]
+      - button "登录" [ref=e18] [cursor=pointer]
+    - generic [ref=e21]: 或者
+    - button "没有账号？注册" [ref=e23] [cursor=pointer]
+    - paragraph [ref=e24]: 多用户模式 · 数据完全隔离
+  - region "Notifications alt+T"

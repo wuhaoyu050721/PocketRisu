@@ -13,6 +13,15 @@ window.addEventListener('vite:preloadError', (event) => {
     location.reload();
 });
 
+// Dynamic import failure → auto reload (stale cache after deployment)
+window.addEventListener('unhandledrejection', (event) => {
+    if (event.reason?.message?.includes('Failed to fetch dynamically imported module')) {
+        console.error('Dynamic import failed, reloading...', event.reason.message);
+        event.preventDefault();
+        location.reload();
+    }
+});
+
 preLoadCheck()
 let app = mount(App, {
     target: document.getElementById("app"),

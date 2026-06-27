@@ -40,21 +40,30 @@ export default defineConfig(({command, mode}) => {
       strictPort: true,
       proxy: {
         '/api': {
-          target: 'http://127.0.0.1:6001',
+          target: 'https://www.surtr.cn',
           changeOrigin: true,
+          secure: true,
         },
         '/hub-proxy': {
-          target: 'http://127.0.0.1:6001',
+          target: 'https://www.surtr.cn',
           changeOrigin: true,
+          secure: true,
         },
         '/proxy2': {
-          target: 'http://127.0.0.1:6001',
+          target: 'https://www.surtr.cn',
           changeOrigin: true,
+          secure: true,
         },
         '/proxy-stream-jobs': {
-          target: 'http://127.0.0.1:6001',
+          target: 'https://www.surtr.cn',
           changeOrigin: true,
           ws: true,
+          secure: true,
+        },
+        '/sw': {
+          target: 'https://www.surtr.cn',
+          changeOrigin: true,
+          secure: true,
         },
       },
       // hmr: false,

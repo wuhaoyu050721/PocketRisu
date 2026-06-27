@@ -25,7 +25,9 @@ const getVips = () => {
 }
 const { kvGet, kvSet, kvDel, kvList,
         kvDelPrefix, kvListWithSizes, kvSize, kvGetUpdatedAt, kvCopyValue, clearEntities, checkpointWal,
-        gcChunks, reclaimableChunkBytes, isDbBlobChunked, snapshotFootprint, db: sqliteDb } = require('./db.cjs');
+        gcChunks, reclaimableChunkBytes, isDbBlobChunked, snapshotFootprint, db: sqliteDb,
+        userAls, migrateToMultiUserIfNeeded, migrateKvToMysql,
+        migrateChunkedAndSharedToMysql } = require('./db.cjs');
 const {
     addLogBatch, queryLogs, clearLogs, countLogs,
     logger, installProcessHandlers, expressErrorMiddleware,
@@ -216,9 +218,9 @@ const BACKUP_INTERVAL_MS = process.env.XIAOXIANGUAN_BACKUP_INTERVAL_MS
     : 5 * 60 * 1000; // 5 minutes (override for tests to force snapshot creation)
 let lastBackupTime = null;
 
-function readSnapshotConfigInt(key, fallback, min, max) {
+async function readSnapshotConfigInt(key, fallback, min, max) {
     try {
-        const raw = kvGet(key);
+        const raw = await kvGet(key);
         if (!raw) return fallback;
         const n = parseInt(Buffer.from(raw).toString('utf-8').trim(), 10);
         if (!Number.isFinite(n)) return fallback;
@@ -226,13 +228,13 @@ function readSnapshotConfigInt(key, fallback, min, max) {
     } catch { return fallback; }
 }
 
-function getSnapshotLimits() {
+async function getSnapshotLimits() {
     return {
-        maxCount: readSnapshotConfigInt(
+        maxCount: await readSnapshotConfigInt(
             SNAPSHOT_LIMIT_COUNT_KEY, SNAPSHOT_LIMIT_DEFAULT_COUNT,
             SNAPSHOT_LIMIT_MIN_COUNT, SNAPSHOT_LIMIT_MAX_COUNT,
         ),
-        maxBytes: readSnapshotConfigInt(
+        maxBytes: await readSnapshotConfigInt(
             SNAPSHOT_LIMIT_BYTES_KEY, SNAPSHOT_LIMIT_DEFAULT_BYTES,
             SNAPSHOT_LIMIT_MIN_BYTES, SNAPSHOT_LIMIT_MAX_BYTES,
         ),
@@ -242,17 +244,16 @@ function getSnapshotLimits() {
 // Walk newest → oldest; keep within both limits, delete the rest. The most
 // recent snapshot is always kept (even if it alone exceeds the byte limit) so
 // we never end up with zero backups after a config change.
-function trimSnapshotsToLimits() {
-    const { maxCount, maxBytes } = getSnapshotLimits();
-    // Size each snapshot by its marginal disk cost (chunks not shared with the
-    // live blob), not its logical size — chunked snapshots share chunks, so a
-    // logical measure would over-trim ones that cost almost nothing on disk.
-    const entries = kvList(DB_BACKUP_PREFIX)
-        .map((key) => {
-            const tsRaw = parseInt(key.slice(DB_BACKUP_PREFIX.length, -4), 10);
-            return { key, size: snapshotFootprint(key), ts: Number.isFinite(tsRaw) ? tsRaw : 0 };
-        })
-        .sort((a, b) => b.ts - a.ts);
+async function trimSnapshotsToLimits() {
+    const { maxCount, maxBytes } = await getSnapshotLimits();
+    // Size each snapshot by its marginal disk cost. In chunked SQLite mode
+    // snapshots share chunks with the live blob — only unique chunks count.
+    // In MySQL mode each snapshot is a full independent copy.
+    const rawKeys = await kvList(DB_BACKUP_PREFIX);
+    const entries = (await Promise.all(rawKeys.map(async (key) => {
+        const tsRaw = parseInt(key.slice(DB_BACKUP_PREFIX.length, -4), 10);
+        return { key, size: await snapshotFootprint(key), ts: Number.isFinite(tsRaw) ? tsRaw : 0 };
+    }))).sort((a, b) => b.ts - a.ts);
 
     let runningBytes = 0;
     const toDelete = [];
@@ -267,7 +268,7 @@ function trimSnapshotsToLimits() {
             toDelete.push(e.key);
         }
     }
-    for (const key of toDelete) kvDel(key);
+    for (const key of toDelete) await kvDel(key);
     return { kept: entries.length - toDelete.length, removed: toDelete.length };
 }
 
@@ -278,17 +279,17 @@ function trimSnapshotsToLimits() {
 //   logicalBytes — sum of each snapshot's full logical size (kvSize), i.e. what
 //                  the snapshots would cost WITHOUT dedup. Drives the "saved by
 //                  deduplication" figure; never used for trimming.
-function snapshotUsage() {
-    const keys = kvList(DB_BACKUP_PREFIX);
+async function snapshotUsage() {
+    const keys = await kvList(DB_BACKUP_PREFIX);
     let bytes = 0, logicalBytes = 0;
     for (const k of keys) {
-        bytes += snapshotFootprint(k);
-        logicalBytes += (kvSize(k) || 0);
+        bytes += await snapshotFootprint(k);
+        logicalBytes += (await kvSize(k) || 0);
     }
     return { count: keys.length, bytes, logicalBytes };
 }
 
-function createBackupAndRotate() {
+async function createBackupAndRotate() {
     const now = Date.now();
     if (lastBackupTime && now - lastBackupTime < BACKUP_INTERVAL_MS) {
         return;
@@ -296,8 +297,8 @@ function createBackupAndRotate() {
     lastBackupTime = now;
 
     const backupKey = `${DB_BACKUP_PREFIX}${(now / 100).toFixed()}.bin`;
-    kvCopyValue('database/database.bin', backupKey);
-    trimSnapshotsToLimits();
+    await kvCopyValue('database/database.bin', backupKey);
+    await trimSnapshotsToLimits();
 }
 
 async function flushPendingDb() {
@@ -308,14 +309,14 @@ async function flushPendingDb() {
             await persistDbCacheWithChats(DB_HEX_KEY, 'database/database.bin');
         } else if (fullChatStore && fullChatStore.size > 0) {
             // No stripped cache but chat store has data — merge and persist directly
-            const raw = kvGet('database/database.bin');
+            const raw = await kvGet('database/database.bin');
             if (raw) {
                 const dbObj = normalizeJSON(await decodeRisuSave(raw));
                 const fullDb = reassembleFullDb(stripChatsFromDb(dbObj));
-                kvSet('database/database.bin', Buffer.from(encodeRisuSaveLegacy(fullDb)));
+                await kvSet('database/database.bin', Buffer.from(encodeRisuSaveLegacy(fullDb)));
             }
         }
-        createBackupAndRotate();
+        await await createBackupAndRotate();
     }
 }
 
@@ -375,7 +376,7 @@ async function decodeDatabaseWithPersistentChatIds(raw, options = {}) {
     // stale and we re-read from KV. Idempotent on the no-op path.
     const migration = await migrateRemoteBlocksIfNeeded();
     if (migration.ran) {
-        const fresh = kvGet('database/database.bin');
+        const fresh = await kvGet('database/database.bin');
         if (fresh) raw = fresh;
     }
     const dbObj = normalizeJSON(await decodeRisuSave(raw));
@@ -391,7 +392,7 @@ async function decodeDatabaseWithPersistentChatIds(raw, options = {}) {
     // This runs when upstream data first enters NodeOnly (backup import or save folder copy).
     // After restore, the coldstorage field is removed and the clean DB is persisted.
     // Failed characters are promoted to safe blank characters — their KV data is preserved for manual recovery.
-    const coldRestoreResult = restoreColdStorageCharactersInDb(dbObj);
+    const coldRestoreResult = await restoreColdStorageCharactersInDb(dbObj);
     if (coldRestoreResult.restored > 0 || coldRestoreResult.failed > 0) needsPersist = true;
     if (coldRestoreResult.failed > 0) {
         logger.error(`[ColdStorage] ${coldRestoreResult.failed} character(s) could not be restored and were converted to safe blank characters. Cold storage KV data is preserved.`);
@@ -401,9 +402,9 @@ async function decodeDatabaseWithPersistentChatIds(raw, options = {}) {
     }
 
     if (needsPersist) {
-        kvSet('database/database.bin', Buffer.from(encodeRisuSaveLegacy(dbObj)));
+        await kvSet('database/database.bin', Buffer.from(encodeRisuSaveLegacy(dbObj)));
         if (createBackup) {
-            createBackupAndRotate();
+            await await createBackupAndRotate();
         }
     }
     if (migrationResult) {
@@ -561,13 +562,13 @@ function reassembleFullDb(strippedDb) {
 const REMOTE_MIGRATION_MARKER_KEY = 'migration/disable-remote-saving';
 const REMOTE_MIGRATION_MARKER_VALUE = Buffer.from('done', 'utf-8');
 
-function isRemoteMigrationDone() {
-    const value = kvGet(REMOTE_MIGRATION_MARKER_KEY);
+async function isRemoteMigrationDone() {
+    const value = await kvGet(REMOTE_MIGRATION_MARKER_KEY);
     return value !== null && value.length > 0;
 }
 
-function markRemoteMigrationDone() {
-    kvSet(REMOTE_MIGRATION_MARKER_KEY, REMOTE_MIGRATION_MARKER_VALUE);
+async function markRemoteMigrationDone() {
+    await kvSet(REMOTE_MIGRATION_MARKER_KEY, REMOTE_MIGRATION_MARKER_VALUE);
 }
 
 /**
@@ -575,16 +576,16 @@ function markRemoteMigrationDone() {
  * Safe to call repeatedly: idempotent via KV marker.
  */
 async function migrateRemoteBlocksIfNeeded() {
-    if (isRemoteMigrationDone()) return { ran: false, reason: 'already-done' };
+    if (await isRemoteMigrationDone()) return { ran: false, reason: 'already-done' };
 
-    const raw = kvGet('database/database.bin');
+    const raw = await kvGet('database/database.bin');
     if (!raw) {
-        markRemoteMigrationDone();
+        await markRemoteMigrationDone();
         return { ran: false, reason: 'no-database' };
     }
 
     if (!hasRemoteBlocks(raw)) {
-        markRemoteMigrationDone();
+        await markRemoteMigrationDone();
         return { ran: false, reason: 'no-remote-blocks' };
     }
 
@@ -596,11 +597,11 @@ async function migrateRemoteBlocksIfNeeded() {
     // non-numeric suffix), making it the first to evict. The migration safety
     // net must outlive ordinary backup churn.
     const backupKey = `migration-backup/pre-remote-fix-${Date.now()}.bin`;
-    kvCopyValue('database/database.bin', backupKey);
+    await kvCopyValue('database/database.bin', backupKey);
 
     const dbObj = await decodeRisuSave(raw, {
         resolveRemote: async (name) => {
-            const value = kvGet(`remotes/${name}.local.bin`);
+            const value = await kvGet(`remotes/${name}.local.bin`);
             return value || null;
         },
     });
@@ -640,7 +641,7 @@ async function ensureChatStore() {
     // Run remote-block migration first so the decode below sees an inline DB.
     // Idempotent — skipped on every subsequent call.
     await migrateRemoteBlocksIfNeeded();
-    const raw = kvGet('database/database.bin');
+    const raw = await kvGet('database/database.bin');
     if (!raw) {
         fullChatStore = new Map();
         return;
@@ -787,7 +788,7 @@ async function persistDbCacheWithChats(filePath, decodedKey) {
 
     const data = Buffer.from(encodeRisuSaveLegacy(fullDb));
     try {
-        kvSet(decodedKey, data);
+        await kvSet(decodedKey, data);
     } catch (err) {
         // Tag with BLOB size so the visibility layer can surface it to the user.
         // The dominant failure mode (better-sqlite3 INT_MAX) is size-driven.
@@ -840,6 +841,35 @@ function shouldCompress(req, res) {
     return compression.filter(req, res);
 }
 
+// ── Multi-user: extract userId from JWT into AsyncLocalStorage for KV key prefixing ──
+app.use((req, res, next) => {
+    // Public endpoints that don't need user context
+    if (req.path.startsWith('/api/auth/') ||
+        req.path === '/api/test_auth' ||
+        req.path === '/api/crypto' ||
+        req.path === '/api/login' ||
+        req.path === '/api/token/refresh' ||
+        req.path === '/api/set_password' ||
+        req.path === '/api/public-stats' ||
+        req.path === '/api/update-check' ||
+        req.path === '/none.webp') {
+        return next();
+    }
+    const authHeader = req.headers['risu-auth'];
+    if (!authHeader) return next();
+    try {
+        const parts = authHeader.split('.');
+        if (parts.length !== 3) return next();
+        const payload = JSON.parse(
+            Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8')
+        );
+        if (payload.sub && payload.sub !== 'default' && isMysqlEnabled()) {
+            return userAls.run({ userId: payload.sub }, () => next());
+        }
+    } catch {}
+    next();
+});
+
 app.use(compression({
     filter: shouldCompress,
 }));
@@ -880,9 +910,9 @@ const MANAGED_BACKUP_PATH_ROOTS = new Set(['server', 'dist', 'scripts', 'bin', '
 // runs without npm deps) can't read it; this marker bridges that gap.
 const BACKUP_PATH_MARKER = path.join(savePath, '__backup_path');
 
-function readBackupsDirConfig() {
+async function readBackupsDirConfig() {
     try {
-        const raw = kvGet(BACKUP_PATH_CONFIG_KEY);
+        const raw = await kvGet(BACKUP_PATH_CONFIG_KEY);
         if (!raw) return DEFAULT_BACKUPS_DIR;
         const text = Buffer.from(raw).toString('utf-8').trim();
         return text || DEFAULT_BACKUPS_DIR;
@@ -905,10 +935,11 @@ function isManagedBackupPath(absPath) {
     return MANAGED_BACKUP_PATH_ROOTS.has(rel.split(path.sep)[0]);
 }
 
-let backupsDir = readBackupsDirConfig();
+let backupsDir = DEFAULT_BACKUPS_DIR; // overwritten in startServer() after MySQL init
+// Ensure the default directory exists for early startup (actual config loaded later)
 if(!existsSync(backupsDir)){
     try { mkdirSync(backupsDir, { recursive: true }); }
-    catch { backupsDir = DEFAULT_BACKUPS_DIR; mkdirSync(backupsDir, { recursive: true }); }
+    catch { /* keep default */ }
 }
 writeBackupPathMarker(backupsDir);
 const BACKUP_FILENAME_REGEX = /^risu-backup-\d+\.bin$/;
@@ -1342,7 +1373,7 @@ async function listInlayFiles() {
 }
 
 async function readInlayLegacyInfo(id) {
-    const value = kvGet(`inlay_info/${id}`);
+    const value = await kvGet(`inlay_info/${id}`);
     if (!value) return null;
     try {
         const parsed = JSON.parse(value.toString('utf-8'));
@@ -1363,7 +1394,7 @@ async function readInlayInfoPayload(id) {
     if (sidecar) return Buffer.from(JSON.stringify(sidecar));
     const legacy = await readInlayLegacyInfo(id);
     if (legacy) return Buffer.from(JSON.stringify(legacy));
-    return kvGet(`inlay_info/${id}`);
+    return await kvGet(`inlay_info/${id}`);
 }
 
 async function readInlayAssetPayload(id) {
@@ -1390,18 +1421,18 @@ async function migrateInlaysToFilesystem() {
     await ensureInlayDir();
     if (existsSync(inlayMigrationMarker)) return;
 
-    const keys = kvList('inlay/');
+    const keys = await kvList('inlay/');
     for (const key of keys) {
         const id = key.slice('inlay/'.length);
         if (!isSafeInlayId(id)) continue;
         const fileAlreadyExists = await readInlayFile(id);
         if (fileAlreadyExists) {
-            kvDel(key);
-            kvDel(`inlay_thumb/${id}`);
-            kvDel(`inlay_info/${id}`);
+            await kvDel(key);
+            await kvDel(`inlay_thumb/${id}`);
+            await kvDel(`inlay_info/${id}`);
             continue;
         }
-        const value = kvGet(key);
+        const value = await kvGet(key);
         if (!value) continue;
         try {
             const parsed = JSON.parse(value.toString('utf-8'));
@@ -1421,9 +1452,9 @@ async function migrateInlaysToFilesystem() {
                 width: typeof parsed?.width === 'number' ? parsed.width : undefined,
             };
             await writeInlayFile(id, ext, buffer, info);
-            kvDel(key);
-            kvDel(`inlay_thumb/${id}`);
-            kvDel(`inlay_info/${id}`);
+            await kvDel(key);
+            await kvDel(`inlay_thumb/${id}`);
+            await kvDel(`inlay_info/${id}`);
         } catch (error) {
             logger.warn(`[InlayFS] Failed to migrate ${key}:`, error?.message || error);
         }
@@ -1462,14 +1493,19 @@ async function fetchLatestRelease(lang) {
 // cookie issued after initial JWT auth. Single-user environment: Map is fine.
 // Sessions are persisted to disk so they survive server restarts.
 const SESSION_FILE = path.join(process.cwd(), 'save', '__sessions')
-const sessions = new Map() // token → expiresAt (ms)
+const sessions = new Map() // token → { userId, expiresAt }
 
 function loadSessions() {
     try {
         const raw = readFileSync(SESSION_FILE, 'utf-8')
         const now = Date.now()
-        for (const [token, exp] of JSON.parse(raw)) {
-            if (exp > now) sessions.set(token, exp)
+        for (const [token, val] of JSON.parse(raw)) {
+            // Backward compat: old format stored number (expiresAt) directly
+            if (typeof val === 'number') {
+                if (val > now) sessions.set(token, { userId: null, expiresAt: val })
+            } else if (val && val.expiresAt > now) {
+                sessions.set(token, val)
+            }
         }
     } catch { /* file missing or corrupt – start fresh */ }
 }
@@ -1493,8 +1529,16 @@ function parseSessionCookie(req) {
 
 function sessionAuthMiddleware(req, res, next) {
     const token = parseSessionCookie(req)
-    if (token && (sessions.get(token) ?? 0) > Date.now()) return next()
-    res.status(401).end()
+    const entry = sessions.get(token)
+    if (!entry) { res.status(401).end(); return }
+    const expiresAt = typeof entry === 'number' ? entry : entry.expiresAt
+    if (expiresAt <= Date.now()) { res.status(401).end(); return }
+    const userId = (typeof entry === 'object' && entry.userId) ? String(entry.userId) : 'default'
+    req.user = { id: userId, username: userId }
+    if (userId !== 'default' && isMysqlEnabled()) {
+        return userAls.run({ userId }, () => next())
+    }
+    next()
 }
 
 // MIME detection by magic bytes (fallback when key has no extension)
@@ -2181,16 +2225,16 @@ function encodeColdStorageCanonicalBuffer(coldData) {
     return Buffer.from(zlib.gzipSync(Buffer.from(JSON.stringify(coldData), 'utf-8')));
 }
 
-function readColdStorageJsonEntry(nameOrKey, options = {}) {
+async function readColdStorageJsonEntry(nameOrKey, options = {}) {
     const { migrateLegacy = false, allowPlainJsonFallback = false } = options;
     const canonicalKey = normalizeColdStorageStorageKey(nameOrKey);
     const legacyBackupKey = `${canonicalKey}.json`;
 
     let storageKey = canonicalKey;
-    let value = kvGet(canonicalKey);
+    let value = await kvGet(canonicalKey);
     if (!value) {
         storageKey = legacyBackupKey;
-        value = kvGet(legacyBackupKey);
+        value = await kvGet(legacyBackupKey);
     }
     if (!value) {
         return null;
@@ -2201,9 +2245,9 @@ function readColdStorageJsonEntry(nameOrKey, options = {}) {
     });
 
     if (migrateLegacy && (storageKey !== canonicalKey || parsed.format !== 'gzip')) {
-        kvSet(canonicalKey, encodeColdStorageCanonicalBuffer(parsed.coldData));
+        await kvSet(canonicalKey, encodeColdStorageCanonicalBuffer(parsed.coldData));
         if (storageKey !== canonicalKey) {
-            kvDel(storageKey);
+            await kvDel(storageKey);
         }
     }
 
@@ -2215,13 +2259,14 @@ function readColdStorageJsonEntry(nameOrKey, options = {}) {
     };
 }
 
-function listColdStorageBackupEntries() {
+async function listColdStorageBackupEntries() {
     const canonicalKeys = Array.from(new Set(
-        kvList('coldstorage/').map((key) => normalizeColdStorageStorageKey(key))
+        (await kvList('coldstorage/')).map((key) => normalizeColdStorageStorageKey(key))
     )).sort((a, b) => a.localeCompare(b));
 
-    return canonicalKeys.map((storageKey) => {
-        const entry = readColdStorageJsonEntry(storageKey, {
+    const results = [];
+    for (const storageKey of canonicalKeys) {
+        const entry = await readColdStorageJsonEntry(storageKey, {
             migrateLegacy: true,
             allowPlainJsonFallback: true,
         });
@@ -2229,14 +2274,15 @@ function listColdStorageBackupEntries() {
             throw new Error(`[ColdStorage] missing cold storage entry while exporting: ${storageKey}`);
         }
         const plainJson = Buffer.from(JSON.stringify(entry.coldData), 'utf-8');
-        return {
+        results.push({
             kind: 'buffer',
             buffer: plainJson,
             backupName: toColdStorageBackupName(storageKey),
             sortKey: toColdStorageBackupName(storageKey),
             size: plainJson.length,
-        };
-    });
+        });
+    }
+    return results;
 }
 
 function resolveBackupStorageKey(name) {
@@ -2368,31 +2414,31 @@ async function importBackupFromSource(dataSource, { maxBytes = 0, totalBytes = 0
     }
 
     await flushPendingDb();
-    createBackupAndRotate();
+    await createBackupAndRotate();
 
     sqliteDb.pragma('synchronous = OFF');
 
     sqliteDb.exec('BEGIN');
-    kvDelPrefix('assets/');
-    kvDelPrefix('inlay/');
-    kvDelPrefix('inlay_thumb/');
-    kvDelPrefix('inlay_meta/');
-    kvDelPrefix('inlay_info/');
-    kvDelPrefix('coldstorage/');
+    await kvDelPrefix('assets/');
+    await kvDelPrefix('inlay/');
+    await kvDelPrefix('inlay_thumb/');
+    await kvDelPrefix('inlay_meta/');
+    await kvDelPrefix('inlay_info/');
+    await kvDelPrefix('coldstorage/');
     // Composer drafts are session/device-local and not carried in the backup;
     // wipe stale ones so an old snapshot's chats don't resurrect later drafts.
-    kvDelPrefix('drafts/');
+    await kvDelPrefix('drafts/');
     // Same reasoning as clearExistingData (save-folder import path): wipe stale
     // remote payloads from the prior user before this backup's contents land.
     // .bin backups never carry REMOTE blocks today, so the migration won't
     // resolveRemote on them — but keeping the two import paths consistent
     // avoids a contamination regression if that ever changes (upstream sync,
     // plugin-generated buffers, etc.).
-    kvDelPrefix('remotes/');
+    await kvDelPrefix('remotes/');
     // Allow remote-block migration to re-evaluate against the new database.bin.
     // (.bin backups themselves never carry REMOTE blocks — legacy msgpack
     // format only — but a fresh import is a clear "data changed" signal.)
-    kvDel(REMOTE_MIGRATION_MARKER_KEY);
+    await kvDel(REMOTE_MIGRATION_MARKER_KEY);
     clearEntities();
 
     try {
@@ -2413,7 +2459,7 @@ async function importBackupFromSource(dataSource, { maxBytes = 0, totalBytes = 0
             pendingChunks = [];
             pendingTotal = 0;
 
-            const remaining = parseBackupChunk(buffer, (name, data) => {
+            const remaining = parseBackupChunk(buffer, async (name, data) => {
                 if (seenEntryNames.has(name)) {
                     throw new Error(`Duplicate backup entry: ${name}`);
                 }
@@ -2486,7 +2532,7 @@ async function importBackupFromSource(dataSource, { maxBytes = 0, totalBytes = 0
                             parseColdStorageJsonBuffer(data, name, { allowPlainJson: true }).coldData
                         )
                         : data;
-                    kvSet(storageKey, storageValue);
+                    await kvSet(storageKey, storageValue);
                     if (storageKey === 'database/database.bin') {
                         hasDatabase = true;
                     } else {
@@ -2563,7 +2609,7 @@ async function importBackupFromSource(dataSource, { maxBytes = 0, totalBytes = 0
     invalidateDbCache();
 
     // Trigger cold storage migration now so import result includes failure count.
-    const dbRaw = kvGet('database/database.bin');
+    const dbRaw = await kvGet('database/database.bin');
     let coldStorageFailed = 0;
     if (dbRaw) {
         const migration = {};
@@ -3410,10 +3456,11 @@ app.post('/api/session', async (req, res) => {
     }
     const token = nodeCrypto.randomBytes(32).toString('hex')
     const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
-    sessions.set(token, expiresAt)
+    sessions.set(token, { userId: req.user?.id || 'default', expiresAt })
     // Prune stale sessions (bounded by single-user usage, safe to do inline)
-    for (const [t, exp] of sessions) {
-        if (exp < Date.now()) sessions.delete(t)
+    for (const [t, val] of sessions) {
+        const e = typeof val === 'number' ? val : val?.expiresAt
+        if (e && e < Date.now()) sessions.delete(t)
     }
     saveSessions()
     const maxAge = 7 * 24 * 60 * 60 // seconds
@@ -3463,6 +3510,7 @@ function resolveAssetPayload(key, rawValue) {
     return { binary: rawValue, contentType }
 }
 
+const ASSET_CACHE_CONTROL = 'private, max-age=86400'
 const THUMB_MAX_SIDE = 320;
 const THUMB_QUALITY = 75;
 const THUMB_IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp']);
@@ -3491,11 +3539,11 @@ app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
             if (file) {
                 const etag = `"${Math.floor(file.mtimeMs)}"`
                 if (req.headers['if-none-match'] === etag) {
-                    return res.status(304).set('Cache-Control', 'public, max-age=31536000, immutable').end()
+                    return res.status(304).set('Cache-Control', ASSET_CACHE_CONTROL).end()
                 }
                 res.set({
                     'Content-Type': file.mime,
-                    'Cache-Control': 'public, max-age=31536000, immutable',
+                    'Cache-Control': ASSET_CACHE_CONTROL,
                     'ETag': etag,
                 })
                 return res.send(file.buffer)
@@ -3513,33 +3561,33 @@ app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
             if (!file) return res.status(404).set('Cache-Control', 'no-store').end()
             const etag = `"thumb-${Math.floor(file.mtimeMs)}"`
             if (req.headers['if-none-match'] === etag) {
-                return res.status(304).set('Cache-Control', 'public, max-age=31536000, immutable').end()
+                return res.status(304).set('Cache-Control', ASSET_CACHE_CONTROL).end()
             }
             const thumb = await generateThumbnail(file.buffer)
             res.set({
                 'Content-Type': 'image/webp',
-                'Cache-Control': 'public, max-age=31536000, immutable',
+                'Cache-Control': ASSET_CACHE_CONTROL,
                 'ETag': etag,
             })
             return res.send(thumb)
         }
 
         // Fast-path 304: check updated_at BEFORE loading the blob.
-        const updatedAt = kvGetUpdatedAt(key)
+        const updatedAt = await kvGetUpdatedAt(key)
         if (updatedAt === null) return res.status(404).set('Cache-Control', 'no-store').end()
 
         const etag = `"${updatedAt}"`
         if (req.headers['if-none-match'] === etag) {
-            return res.status(304).set('Cache-Control', 'public, max-age=31536000, immutable').end()
+            return res.status(304).set('Cache-Control', ASSET_CACHE_CONTROL).end()
         }
 
-        const data = kvGet(key)
+        const data = await kvGet(key)
         if (!data) return res.status(404).set('Cache-Control', 'no-store').end()
 
         const { binary, contentType } = resolveAssetPayload(key, data)
         res.set({
             'Content-Type': contentType,
-            'Cache-Control': 'public, max-age=31536000, immutable',
+            'Cache-Control': ASSET_CACHE_CONTROL,
             'ETag': etag,
         })
         res.send(binary)
@@ -3685,7 +3733,7 @@ app.get('/api/read', async (req, res, next) => {
             value = await readInlayInfoPayload(key.slice('inlay_info/'.length));
         }
         if (value === null) {
-            value = kvGet(key);
+            value = await kvGet(key);
         }
         if(value === null){
             res.send();
@@ -3739,15 +3787,15 @@ app.get('/api/remove', async (req, res, next) => {
         if (key.startsWith('inlay/')) {
             const id = key.slice('inlay/'.length)
             await deleteInlayFile(id)
-            kvDel(key);
-            kvDel(`inlay_thumb/${id}`);
-            kvDel(`inlay_info/${id}`);
+            await kvDel(key);
+            await kvDel(`inlay_thumb/${id}`);
+            await kvDel(`inlay_info/${id}`);
             return res.send({ success: true });
         }
         if (key.startsWith('inlay_info/')) {
             await fs.unlink(getInlaySidecarPath(key.slice('inlay_info/'.length))).catch(() => {});
         }
-        kvDel(key);
+        await kvDel(key);
         res.send({ success: true });
     } catch (error) {
         next(error);
@@ -3765,10 +3813,10 @@ app.get('/api/list', async (req, res, next) => {
             const fileKeys = (await listInlayFiles()).map((entry) => `inlay/${entry.id}`);
             data = [...new Set([
                 ...fileKeys,
-                ...kvList('inlay/'),
+                ...(await kvList('inlay/')),
             ])];
         } else {
-            data = kvList(keyPrefix || undefined);
+            data = await kvList(keyPrefix || undefined);
         }
         res.send({ success: true, content: data });
     } catch (error) {
@@ -3891,14 +3939,14 @@ app.post('/api/write', async (req, res, next) => {
                     height: typeof parsed?.height === 'number' ? parsed.height : undefined,
                     width: typeof parsed?.width === 'number' ? parsed.width : undefined,
                 });
-                kvDel(key);
-                kvDel(`inlay_thumb/${id}`);
-                kvDel(`inlay_info/${id}`);
+                await kvDel(key);
+                await kvDel(`inlay_thumb/${id}`);
+                await kvDel(`inlay_info/${id}`);
             } else if (key.startsWith('inlay_info/')) {
                 const id = key.slice('inlay_info/'.length)
                 const parsed = JSON.parse(Buffer.from(fileContent).toString('utf-8'));
                 await writeInlaySidecar(id, parsed);
-                kvDel(key);
+                await kvDel(key);
             } else if (key === 'database/database.bin') {
                 // Client sends stubs-only DB — merge full chats from server before persisting
                 try {
@@ -3932,7 +3980,7 @@ app.post('/api/write', async (req, res, next) => {
                     const mergedContent = Buffer.from(encodeRisuSaveLegacy(fullDb));
                     // Re-init chat store from merged result
                     initChatStore(fullDb);
-                    kvSet(key, mergedContent);
+                    await kvSet(key, mergedContent);
                 } catch (e) {
                     logger.error('[Write] Failed to merge chats into database.bin:', e.message);
                     // Do NOT write stubs-only to disk — that would permanently
@@ -3941,7 +3989,7 @@ app.post('/api/write', async (req, res, next) => {
                     return;
                 }
             } else {
-                kvSet(key, fileContent);
+                await kvSet(key, fileContent);
             }
 
             // Update ETag, backup, and invalidate cache after database.bin write
@@ -3953,7 +4001,7 @@ app.post('/api/write', async (req, res, next) => {
                 }
                 // ETag based on stripped version (what client sees)
                 dbEtag = computeBufferEtag(fileContent);
-                createBackupAndRotate();
+                await createBackupAndRotate();
             }
 
             res.send({
@@ -4011,7 +4059,7 @@ app.post('/api/patch', async (req, res, next) => {
             // Load database into memory if not already cached
             // For database.bin, cache holds the STRIPPED version (stubs only)
             if (!dbCache[filePath]) {
-                const fileContent = kvGet(decodedKey);
+                const fileContent = await kvGet(decodedKey);
                 if (fileContent) {
                     const decoded = decodedKey === 'database/database.bin'
                         ? await decodeDatabaseWithPersistentChatIds(fileContent)
@@ -4099,7 +4147,7 @@ app.post('/api/patch', async (req, res, next) => {
                     } else {
                         const data = Buffer.from(encodeRisuSaveLegacy(dbCache[filePath]));
                         try {
-                            kvSet(decodedKey, data);
+                            await kvSet(decodedKey, data);
                         } catch (err) {
                             if (err && typeof err === 'object') {
                                 try { err.attemptedSize = data.length; } catch {}
@@ -4112,7 +4160,7 @@ app.post('/api/patch', async (req, res, next) => {
                     clearPersistFailure();
                     if (decodedKey === 'database/database.bin') {
                         try {
-                            createBackupAndRotate();
+                            await createBackupAndRotate();
                         } catch (backupErr) {
                             logger.warn(`[Patch] Backup rotation failed for ${decodedKey}:`, backupErr);
                         }
@@ -4176,7 +4224,7 @@ app.post('/api/assets/bulk-read', async (req, res, next) => {
                         value = await readInlayInfoPayload(key.slice('inlay_info/'.length));
                     }
                     if (value === null) {
-                        value = kvGet(key);
+                        value = await kvGet(key);
                     }
                     if (value !== null) {
                         const keyBuf = Buffer.from(key, 'utf-8');
@@ -4208,7 +4256,7 @@ app.post('/api/assets/bulk-read', async (req, res, next) => {
                         value = await readInlayInfoPayload(key.slice('inlay_info/'.length));
                     }
                     if (value === null) {
-                        value = kvGet(key);
+                        value = await kvGet(key);
                     }
                     if (value !== null) {
                         results.push({ key, value: Buffer.from(value).toString('base64') });
@@ -4279,7 +4327,7 @@ app.get('/api/backup/export', async (req, res, next) => {
                 return null;
             }
         }));
-        const inlayMetaEntries = target === 'upstream' ? [] : kvListWithSizes('inlay_meta/').map((entry) => ({
+        const inlayMetaEntries = target === 'upstream' ? [] : (await kvListWithSizes('inlay_meta/')).map((entry) => ({
             kind: 'kv',
             key: entry.key,
             backupName: entry.key,
@@ -4287,19 +4335,19 @@ app.get('/api/backup/export', async (req, res, next) => {
             size: entry.size,
         }));
         const namespacedEntries = [
-            ...kvListWithSizes('assets/').map((entry) => ({
+            ...(await kvListWithSizes('assets/')).map((entry) => ({
                 kind: 'kv',
                 key: entry.key,
                 backupName: path.basename(entry.key),
                 sortKey: entry.key,
                 size: entry.size,
             })),
-            ...listColdStorageBackupEntries(),
+            ...(await listColdStorageBackupEntries()),
             ...inlayMetaEntries,
             ...inlayEntries,
             ...sidecarEntries.filter(Boolean),
         ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-        const dbSize = kvSize('database/database.bin');
+        const dbSize = await kvSize('database/database.bin');
         const totalBytes = namespacedEntries.reduce((sum, entry) => {
             return sum + 8 + Buffer.byteLength(entry.backupName, 'utf-8') + entry.size;
         }, 0) + (dbSize ? 8 + Buffer.byteLength('database.risudat', 'utf-8') + dbSize : 0);
@@ -4329,7 +4377,7 @@ app.get('/api/backup/export', async (req, res, next) => {
         for (const entry of namespacedEntries) {
             if (closed) break;
             const value = entry.kind === 'kv'
-                ? kvGet(entry.key)
+                ? await kvGet(entry.key)
                 : entry.kind === 'buffer'
                     ? entry.buffer
                     : await fs.readFile(entry.sourcePath);
@@ -4344,7 +4392,7 @@ app.get('/api/backup/export', async (req, res, next) => {
         }
 
         if (!closed && dbSize) {
-            const dbValue = kvGet('database/database.bin');
+            const dbValue = await kvGet('database/database.bin');
             if (dbValue) {
                 const ok = res.write(encodeBackupEntry('database.risudat', dbValue));
                 if (!ok) {
@@ -4530,9 +4578,9 @@ app.post('/api/backup/server/save', async (req, res, next) => {
         }))).filter(Boolean);
 
         const namespacedEntries = [
-            ...kvListWithSizes('assets/').map((e) => ({ kind: 'kv', key: e.key, backupName: path.basename(e.key), size: e.size })),
-            ...listColdStorageBackupEntries(),
-            ...kvListWithSizes('inlay_meta/').map((e) => ({ kind: 'kv', key: e.key, backupName: e.key, size: e.size })),
+            ...(await kvListWithSizes('assets/')).map((e) => ({ kind: 'kv', key: e.key, backupName: path.basename(e.key), size: e.size })),
+            ...(await listColdStorageBackupEntries()),
+            ...(await kvListWithSizes('inlay_meta/')).map((e) => ({ kind: 'kv', key: e.key, backupName: e.key, size: e.size })),
             ...inlayEntries,
             ...sidecarEntries,
         ];
@@ -4564,7 +4612,7 @@ app.post('/api/backup/server/save', async (req, res, next) => {
                     for (const entry of namespacedEntries) {
                         if (closed) break;
                         const value = entry.kind === 'kv'
-                            ? kvGet(entry.key)
+                            ? await kvGet(entry.key)
                             : entry.kind === 'buffer'
                                 ? entry.buffer
                                 : await fs.readFile(entry.sourcePath);
@@ -4579,7 +4627,7 @@ app.post('/api/backup/server/save', async (req, res, next) => {
                         }
                     }
                     if (closed) throw new Error('Client disconnected during backup save');
-                    const dbValue = kvGet('database/database.bin');
+                    const dbValue = await kvGet('database/database.bin');
                     if (dbValue) {
                         const ok = writeStream.write(encodeBackupEntry('database.risudat', dbValue));
                         if (!ok) await new Promise(r => writeStream.once('drain', r));
@@ -4772,10 +4820,10 @@ app.get('/api/backup/server/download/:filename', async (req, res, next) => {
 // Cold storage compatibility: restore data stored in coldstorage/ KV entries
 const COLD_STORAGE_HEADER = '\uEF01COLDSTORAGE\uEF01';
 
-function restoreColdStorageCharacter(character) {
+async function restoreColdStorageCharacter(character) {
     if (!character?.coldstorage) return true;
     const key = character.coldstorage;
-    const entry = readColdStorageJsonEntry(key, {
+    const entry = await readColdStorageJsonEntry(key, {
         migrateLegacy: true,
     });
     if (!entry) {
@@ -4840,13 +4888,13 @@ function promoteFailedColdStorageStub(char) {
     delete char.coldStoragedChats;
 }
 
-function restoreColdStorageCharactersInDb(dbObj) {
+async function restoreColdStorageCharactersInDb(dbObj) {
     const result = { restored: 0, failed: 0, failedNames: [] };
     if (!Array.isArray(dbObj?.characters)) return result;
     for (let i = 0; i < dbObj.characters.length; i++) {
         const char = dbObj.characters[i];
         if (!char?.coldstorage) continue;
-        if (restoreColdStorageCharacter(char)) {
+        if (await restoreColdStorageCharacter(char)) {
             result.restored++;
         } else {
             result.failed++;
@@ -4861,10 +4909,10 @@ function isColdStorageChat(chat) {
     return chat?.message?.[0]?.data?.startsWith(COLD_STORAGE_HEADER);
 }
 
-function restoreColdStorageChat(chat) {
+async function restoreColdStorageChat(chat) {
     if (!isColdStorageChat(chat)) return true;
     const key = chat.message[0].data.slice(COLD_STORAGE_HEADER.length);
-    const entry = readColdStorageJsonEntry(key, {
+    const entry = await readColdStorageJsonEntry(key, {
         migrateLegacy: true,
     });
     if (!entry) {
@@ -4903,7 +4951,7 @@ app.get('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
         if (charChats && expectedChatId) {
             const chat = charChats.get(expectedChatId);
             if (chat) {
-                if (!restoreColdStorageChat(chat)) {
+                if (!await restoreColdStorageChat(chat)) {
                     return res.status(500).json({ error: 'Cold storage restore failed' });
                 }
                 const encoded = Buffer.from(encodeRisuSaveLegacy(chat));
@@ -4913,7 +4961,7 @@ app.get('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
         }
 
         // Fallback: load from disk and find by index
-        const raw = kvGet('database/database.bin');
+        const raw = await kvGet('database/database.bin');
         if (!raw) {
             return res.status(404).json({ error: 'Database not found' });
         }
@@ -4927,7 +4975,7 @@ app.get('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
         if (expectedChatId && chat.id !== expectedChatId) {
             return res.status(409).json({ error: 'Chat ID mismatch — index may have shifted' });
         }
-        if (!restoreColdStorageChat(chat)) {
+        if (!await restoreColdStorageChat(chat)) {
             return res.status(500).json({ error: 'Cold storage restore failed' });
         }
         const encoded = Buffer.from(encodeRisuSaveLegacy(chat));
@@ -4983,13 +5031,13 @@ app.post('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
                         await persistDbCacheWithChats(DB_HEX_KEY, 'database/database.bin');
                     } else {
                         // No stripped cache — load, merge, save
-                        const raw = kvGet('database/database.bin');
+                        const raw = await kvGet('database/database.bin');
                         if (raw) {
                             const dbObj = normalizeJSON(await decodeRisuSave(raw));
                             const fullDb = reassembleFullDb(stripChatsFromDb(dbObj));
                             const encoded = Buffer.from(encodeRisuSaveLegacy(fullDb));
                             try {
-                                kvSet('database/database.bin', encoded);
+                                await kvSet('database/database.bin', encoded);
                             } catch (err) {
                                 if (err && typeof err === 'object') {
                                     try { err.attemptedSize = encoded.length; } catch {}
@@ -5002,7 +5050,7 @@ app.post('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
                     // failure isn't attributed to data loss.
                     clearPersistFailure();
                     try {
-                        createBackupAndRotate();
+                        await createBackupAndRotate();
                     } catch (backupErr) {
                         logger.warn('[ChatContent] Backup rotation failed:', backupErr);
                     }
@@ -5075,7 +5123,7 @@ async function importHexFilesFromDir(dirPath) {
     if (!hasDatabase) throw new Error('Save folder does not contain database/database.bin');
 
     await flushPendingDb();
-    createBackupAndRotate();
+    await createBackupAndRotate();
     invalidateDbCache();
 
     const insert = sqliteDb.prepare(
@@ -5106,7 +5154,7 @@ async function importHexEntries(entries) {
     if (!hasDb) throw new Error('Data does not contain database/database.bin');
 
     await flushPendingDb();
-    createBackupAndRotate();
+    await await createBackupAndRotate();
     invalidateDbCache();
 
     const insert = sqliteDb.prepare(
@@ -5369,10 +5417,10 @@ async function sumInlayFsBytes() {
 // kvSize. Cost: ~5-50 ms typical, ~200 ms for users with thousands of inlays.
 async function estimateServerBackupSize() {
     let total = 0;
-    total += kvSize(DB_BLOB_KEY) || 0;
-    for (const it of kvListWithSizes('assets/')) total += it.size;
-    for (const it of kvListWithSizes('inlay_meta/')) total += it.size;
-    for (const e of listColdStorageBackupEntries()) total += e.size;
+    total += await kvSize(DB_BLOB_KEY) || 0;
+    for (const it of await kvListWithSizes('assets/')) total += it.size;
+    for (const it of await kvListWithSizes('inlay_meta/')) total += it.size;
+    for (const e of await listColdStorageBackupEntries()) total += e.size;
     total += await sumInlayFsBytes();
     return total;
 }
@@ -5419,7 +5467,7 @@ app.get('/api/db/stats', async (req, res, next) => {
         const autoVacuum = sqliteDb.pragma('auto_vacuum', { simple: true });
         const reclaimable = freelistCount * pageSize;
 
-        const dbBlobSize = kvSize(DB_BLOB_KEY) || 0;
+        const dbBlobSize = await kvSize(DB_BLOB_KEY) || 0;
 
         // Physical storage of the chunked DB blob (and all snapshots, which share
         // chunks). This is where the blob bytes actually live post-chunking — kv
@@ -5433,11 +5481,11 @@ app.get('/api/db/stats', async (req, res, next) => {
         // Prefix breakdown — split database/ into the live blob vs rotated backups.
         const prefixes = {};
         prefixes[DB_BLOB_KEY] = { totalSize: dbBlobSize, count: dbBlobSize > 0 ? 1 : 0 };
-        const backupKeys = kvList(DB_BACKUP_PREFIX);
+        const backupKeys = await kvList(DB_BACKUP_PREFIX);
         let backupTotal = 0;
         let backupOldest = null, backupNewest = null;
         for (const k of backupKeys) {
-            const sz = kvSize(k) || 0;
+            const sz = await kvSize(k) || 0;
             backupTotal += sz;
             const tsRaw = parseInt(k.slice(DB_BACKUP_PREFIX.length, -4), 10);
             if (Number.isFinite(tsRaw)) {
@@ -5448,7 +5496,7 @@ app.get('/api/db/stats', async (req, res, next) => {
         }
         prefixes[DB_BACKUP_PREFIX] = { totalSize: backupTotal, count: backupKeys.length };
         for (const p of ASSET_PREFIXES) {
-            const items = kvListWithSizes(p);
+            const items = await kvListWithSizes(p);
             let total = 0;
             for (const it of items) total += it.size;
             prefixes[p] = { totalSize: total, count: items.length };
@@ -5488,7 +5536,7 @@ app.get('/api/db/stats', async (req, res, next) => {
         }
         if (stripped) {
             const uncleanable = buildUncleanableSet(stripped);
-            for (const it of kvListWithSizes('assets/')) {
+            for (const it of await kvListWithSizes('assets/')) {
                 if (!uncleanable.has(statsBasename(it.key))) {
                     orphan.count++;
                     orphan.totalSize += it.size;
@@ -5529,7 +5577,7 @@ app.get('/api/db/stats/characters', async (req, res, next) => {
     if (!await checkAuth(req, res)) return;
     try {
         await ensureChatStore();
-        const raw = kvGet(DB_BLOB_KEY);
+        const raw = await kvGet(DB_BLOB_KEY);
         if (!raw) {
             res.json({ characters: [], orphan: { count: 0, totalSize: 0 }, chatBytesNote: 'estimate' });
             return;
@@ -5537,12 +5585,12 @@ app.get('/api/db/stats/characters', async (req, res, next) => {
         const dbObj = await decodeRisuSave(raw);
 
         const assetSize = new Map();
-        for (const it of kvListWithSizes('assets/')) {
+        for (const it of await kvListWithSizes('assets/')) {
             assetSize.set(statsBasename(it.key), it.size);
         }
         // remotes/<chaId>.local.bin (+ optional .meta sidecar) → bucket by chaId.
         const remoteSize = new Map();
-        for (const it of kvListWithSizes('remotes/')) {
+        for (const it of await kvListWithSizes('remotes/')) {
             const bn = statsBasename(it.key).replace(/\.meta$/, '');
             const chaId = bn.replace(/\.local\.bin$/, '');
             if (chaId) remoteSize.set(chaId, (remoteSize.get(chaId) || 0) + it.size);
@@ -5603,7 +5651,7 @@ app.get('/api/db/stats/characters', async (req, res, next) => {
 
         const uncleanable = buildUncleanableSet(dbObj);
         let orphanCount = 0, orphanTotal = 0;
-        for (const it of kvListWithSizes('assets/')) {
+        for (const it of await kvListWithSizes('assets/')) {
             if (!uncleanable.has(statsBasename(it.key))) {
                 orphanCount++;
                 orphanTotal += it.size;
@@ -5627,7 +5675,7 @@ app.get('/api/db/stats/characters', async (req, res, next) => {
 app.get('/api/db/stats/modules', async (req, res, next) => {
     if (!await checkAuth(req, res)) return;
     try {
-        const raw = kvGet(DB_BLOB_KEY);
+        const raw = await kvGet(DB_BLOB_KEY);
         if (!raw) {
             res.json({ modules: [] });
             return;
@@ -5636,7 +5684,7 @@ app.get('/api/db/stats/modules', async (req, res, next) => {
         const list = Array.isArray(dbObj.modules) ? dbObj.modules : [];
 
         const assetSize = new Map();
-        for (const it of kvListWithSizes('assets/')) {
+        for (const it of await kvListWithSizes('assets/')) {
             assetSize.set(statsBasename(it.key), it.size);
         }
 
@@ -5788,10 +5836,10 @@ app.put('/api/db/snapshots/limits', async (req, res, next) => {
         }
         const maxCount = Math.floor(rawCount);
         const maxBytes = Math.floor(rawBytes);
-        kvSet(SNAPSHOT_LIMIT_COUNT_KEY, Buffer.from(String(maxCount), 'utf-8'));
-        kvSet(SNAPSHOT_LIMIT_BYTES_KEY, Buffer.from(String(maxBytes), 'utf-8'));
-        const trim = trimSnapshotsToLimits();
-        const usage = snapshotUsage();
+        await kvSet(SNAPSHOT_LIMIT_COUNT_KEY, Buffer.from(String(maxCount), 'utf-8'));
+        await kvSet(SNAPSHOT_LIMIT_BYTES_KEY, Buffer.from(String(maxBytes), 'utf-8'));
+        const trim = await trimSnapshotsToLimits();
+        const usage = await snapshotUsage();
         res.json({
             maxCount, maxBytes,
             currentCount: usage.count,
@@ -5805,7 +5853,8 @@ app.put('/api/db/snapshots/limits', async (req, res, next) => {
 app.get('/api/db/snapshots', async (req, res, next) => {
     if (!await checkAuth(req, res)) return;
     try {
-        const out = kvList(DB_BACKUP_PREFIX).map((key) => {
+        const keys = await kvList(DB_BACKUP_PREFIX);
+        const out = (await Promise.all(keys.map(async (key) => {
             const tsRaw = parseInt(key.slice(DB_BACKUP_PREFIX.length, -4), 10);
             const ts = Number.isFinite(tsRaw) ? tsRaw * 100 : null;
             // Logical size — the full data this snapshot represents (the whole DB),
@@ -5814,8 +5863,8 @@ app.get('/api/db/snapshots', async (req, res, next) => {
             // (kvSize reassembles via the manifest; the marker's 13 bytes are not
             // what a user wants to see for a full backup.) Trimming still sizes by
             // snapshotFootprint in db.cjs, so this display change can't over-trim.
-            return { key, size: kvSize(key) || 0, timestamp: ts };
-        }).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+            return { key, size: await kvSize(key) || 0, timestamp: ts };
+        }))).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
         res.json({ snapshots: out });
     } catch (err) { next(err); }
 });
@@ -5829,7 +5878,7 @@ app.delete('/api/db/snapshots', async (req, res, next) => {
         if (!key.startsWith(DB_BACKUP_PREFIX)) {
             return res.status(400).json({ error: 'Invalid snapshot key' });
         }
-        kvDel(key);
+        await kvDel(key);
         res.json({ ok: true });
     } catch (err) { next(err); }
 });
@@ -5846,7 +5895,7 @@ app.post('/api/db/snapshots/restore', async (req, res, next) => {
         if (!key.startsWith(DB_BACKUP_PREFIX)) {
             return res.status(400).json({ error: 'Invalid snapshot key' });
         }
-        const blob = kvGet(key);
+        const blob = await kvGet(key);
         if (!blob) {
             return res.status(404).json({ error: 'Snapshot not found' });
         }
@@ -5855,19 +5904,19 @@ app.post('/api/db/snapshots/restore', async (req, res, next) => {
             // /api/db/optimize. Without this, an in-flight save could land
             // after kvCopyValue and overwrite the restored snapshot.
             await flushPendingDb();
-            kvCopyValue(key, DB_BLOB_KEY);
+            await kvCopyValue(key, DB_BLOB_KEY);
             invalidateDbCache();
             // Snapshot may pre-date the remote-block migration. Clear the marker
             // so migrateRemoteBlocksIfNeeded re-evaluates against the restored
             // bytes instead of skipping based on the prior post-migration state.
-            kvDel(REMOTE_MIGRATION_MARKER_KEY);
+            await kvDel(REMOTE_MIGRATION_MARKER_KEY);
             // Pre-warm chat store from the just-restored blob so subsequent
             // /api/read fetches and patch-sync baselines see the new data.
             // Use decodeDatabaseWithPersistentChatIds so it runs the migration
             // (now unmarked) and refreshes stale raw if the snapshot was a
             // REMOTE-block format.
             try {
-                const raw = kvGet(DB_BLOB_KEY);
+                const raw = await kvGet(DB_BLOB_KEY);
                 if (raw) {
                     const dbObj = await decodeDatabaseWithPersistentChatIds(raw, {
                         createBackup: false,
@@ -5875,7 +5924,7 @@ app.post('/api/db/snapshots/restore', async (req, res, next) => {
                     initChatStore(dbObj);
                     // Migration may have rewritten database.bin — etag must
                     // reflect the post-migration bytes the next /api/read sends.
-                    const finalRaw = kvGet(DB_BLOB_KEY);
+                    const finalRaw = await kvGet(DB_BLOB_KEY);
                     if (finalRaw) dbEtag = computeBufferEtag(Buffer.from(finalRaw));
                 }
             } catch (e) {
@@ -5890,9 +5939,9 @@ app.post('/api/db/snapshots/restore', async (req, res, next) => {
 
 const BOOT_REMINDER_KEY = 'config/boot-backup-reminder';
 
-function readBootReminder() {
+async function readBootReminder() {
     try {
-        const raw = kvGet(BOOT_REMINDER_KEY);
+        const raw = await kvGet(BOOT_REMINDER_KEY);
         if (!raw) return false;
         return Buffer.from(raw).toString('utf-8').trim() === '1';
     } catch { return false; }
@@ -5901,7 +5950,7 @@ function readBootReminder() {
 app.get('/api/backup/boot-reminder', async (req, res, next) => {
     if (!await checkAuth(req, res)) return;
     try {
-        res.json({ enabled: readBootReminder() });
+        res.json({ enabled: await readBootReminder() });
     } catch (err) { next(err); }
 });
 
@@ -5910,7 +5959,7 @@ app.put('/api/backup/boot-reminder', async (req, res, next) => {
     if (!checkActiveSession(req, res)) return;
     try {
         const enabled = !!req.body?.enabled;
-        kvSet(BOOT_REMINDER_KEY, Buffer.from(enabled ? '1' : '0', 'utf-8'));
+        await kvSet(BOOT_REMINDER_KEY, Buffer.from(enabled ? '1' : '0', 'utf-8'));
         res.json({ enabled });
     } catch (err) { next(err); }
 });
@@ -5956,7 +6005,7 @@ app.put('/api/backup/server/path', async (req, res, next) => {
         }
         const previous = backupsDir;
         backupsDir = resolved;
-        kvSet(BACKUP_PATH_CONFIG_KEY, Buffer.from(resolved, 'utf-8'));
+        await kvSet(BACKUP_PATH_CONFIG_KEY, Buffer.from(resolved, 'utf-8'));
         writeBackupPathMarker(resolved);
         res.json({
             path: backupsDir,
@@ -6020,7 +6069,7 @@ app.post('/api/inlays/compress', sessionAuthMiddleware, async (req, res) => {
                     const info = sidecar || {};
                     await writeInlayFile(entry.id, 'webp', webpBuf, { ...info, ext: 'webp' });
                     // invalidate thumbnail cache
-                    kvDel(`inlay_thumb/${entry.id}`);
+                    await kvDel(`inlay_thumb/${entry.id}`);
                     const saved = original.length - webpBuf.length;
                     totalSaved += saved;
                     compressed++;
@@ -6585,11 +6634,36 @@ async function startServer() {
             try {
                 await initMysqlPool();
                 console.log('[Server] MySQL multi-user mode enabled');
+
+                // Migrate legacy shared data to user:1 namespace (runs inside ALS context)
+                try { userAls.run({ userId: '1' }, () => migrateToMultiUserIfNeeded()); }
+                catch (err) { console.error('[Migration] Multi-user migration error:', err.message); }
+
+                // Migrate non-chunked keys from SQLite → MySQL
+                try { await migrateKvToMysql(); }
+                catch (err) { console.error('[Migration] KV→MySQL migration error:', err.message); }
+
+                // Migrate chunked + shared keys from SQLite → MySQL (v3)
+                try { await migrateChunkedAndSharedToMysql(); }
+                catch (err) { console.error('[Migration] Chunked/Shared→MySQL migration error:', err.message); }
             } catch (err) {
                 console.error('[Server] MySQL initialization failed:', err.message);
                 console.error('[Server] Falling back to single-user mode');
             }
         }
+
+        // Reload backupsDir from config (now that MySQL is initialized)
+        try {
+            const configured = await readBackupsDirConfig();
+            if (configured && configured !== backupsDir) {
+                backupsDir = configured;
+            }
+            if (!existsSync(backupsDir)) {
+                try { mkdirSync(backupsDir, { recursive: true }); }
+                catch { backupsDir = DEFAULT_BACKUPS_DIR; mkdirSync(backupsDir, { recursive: true }); }
+            }
+            writeBackupPathMarker(backupsDir);
+        } catch {} // keep default on error
 
         await migrateInlaysToFilesystem();
         await migrateRemoteBlocksIfNeeded();

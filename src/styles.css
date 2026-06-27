@@ -166,6 +166,17 @@
   }
 }
 
+:root {
+  /* Safe-area insets for notched / status-bar devices.
+     env() works on iOS. Android WebViews used by HBuilder X often report 0,
+     so polyfill.ts injects --risu-statusbar-top at runtime. */
+  --risu-statusbar-top: 0px;
+  --sat: max(env(safe-area-inset-top, 0px), var(--risu-statusbar-top));
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -183,37 +194,43 @@ body {
   --FontColorQuote1: #8c8d93;
   --FontColorQuote2: #8c8d93;
   --risu-animation-speed: 0.2s;
-  --risu-theme-bgcolor: #282a36;
-  --risu-theme-darkbg: #21222c;
-  --risu-theme-borderc: #6272a4;
-  --risu-theme-selected: #44475a;
-  --risu-theme-draculared: #ff5555;
-  --risu-theme-textcolor: #f5f5f5;
-  --risu-theme-textcolor2: #64748b;
-  --risu-theme-darkborderc: #4b5563;
-  --risu-theme-darkbutton: #374151;
+  /* ── Agentic dark theme ── */
+  --risu-theme-bgcolor: #0b1020;
+  --risu-theme-darkbg: #131b2f;
+  --risu-theme-borderc: #293653;
+  --risu-theme-selected: #1e2a43;
+  --risu-theme-draculared: #fb7185;
+  --risu-theme-textcolor: #f8fafc;
+  --risu-theme-textcolor2: #8ea0b8;
+  --risu-theme-darkborderc: #293653;
+  --risu-theme-darkbutton: #131b2f;
   /* Semantic token — success/active/positive. Theme-independent: not part
      of ColorScheme interface, so updateColorScheme() never overrides it.
      See .agent/guide/ui.md "시맨틱 토큰". */
-  --risu-theme-success: #16a34a;
+  --risu-theme-success: #22c55e;
+  /* Semantic token — warning. Not part of ColorScheme. */
+  --risu-theme-warn: #fbbf24;
   /* Primary — dynamic accent for "active/on" fills (toggle track, primary CTA).
      Part of ColorScheme: updateColorScheme() overrides it per theme. The default
      here is a fallback for the brief boot window before updateColorScheme runs. */
-  --risu-theme-primary: #3b82f6;
+  --risu-theme-primary: #60a5fa;
   --risu-height-size: 100%;
-  --risu-font-family: Arial, sans-serif, serif;
+  --risu-font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --risu-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
 
-  --risu-theme-neutral-50: #f9fafb;
-  --risu-theme-neutral-100: #f3f4f6;
-  --risu-theme-neutral-200: #e5e7eb;
-  --risu-theme-neutral-300: #d1d5db;
-  --risu-theme-neutral-400: #9ca3af;
-  --risu-theme-neutral-500: #6b7280;
-  --risu-theme-neutral-600: #4b5563;
-  --risu-theme-neutral-700: #374151;
-  --risu-theme-neutral-800: #1f2937;
-  --risu-theme-neutral-900: #111827;
+  /* Neutral — Agentic dark */
+  --risu-theme-neutral-50: #f8fafc;
+  --risu-theme-neutral-100: #f1f5f9;
+  --risu-theme-neutral-200: #e2e8f0;
+  --risu-theme-neutral-300: #cbd5e1;
+  --risu-theme-neutral-400: #94a3b8;
+  --risu-theme-neutral-500: #64748b;
+  --risu-theme-neutral-600: #475569;
+  --risu-theme-neutral-700: #334155;
+  --risu-theme-neutral-800: #1e293b;
+  --risu-theme-neutral-900: #0f172a;
 
+  /* Primary — Agentic blue accent scale */
   --risu-theme-primary-50: #eff6ff;
   --risu-theme-primary-100: #dbeafe;
   --risu-theme-primary-200: #bfdbfe;
@@ -225,16 +242,17 @@ body {
   --risu-theme-primary-800: #1e40af;
   --risu-theme-primary-900: #1e3a8a;
 
-  --risu-theme-secondary-50: #f5f3ff;
-  --risu-theme-secondary-100: #ede9fe;
-  --risu-theme-secondary-200: #ddd6fe;
-  --risu-theme-secondary-300: #c4b5fd;
-  --risu-theme-secondary-400: #a78bfa;
-  --risu-theme-secondary-500: #8b5cf6;
-  --risu-theme-secondary-600: #7c3aed;
-  --risu-theme-secondary-700: #6d28d9;
-  --risu-theme-secondary-800: #5b21b6;
-  --risu-theme-secondary-900: #4c1d95;
+  /* Secondary — muted blue-gray */
+  --risu-theme-secondary-50: #f8fafc;
+  --risu-theme-secondary-100: #e2e8f0;
+  --risu-theme-secondary-200: #cbd5e1;
+  --risu-theme-secondary-300: #94a3b8;
+  --risu-theme-secondary-400: #64748b;
+  --risu-theme-secondary-500: #475569;
+  --risu-theme-secondary-600: #334155;
+  --risu-theme-secondary-700: #1e293b;
+  --risu-theme-secondary-800: #131b2f;
+  --risu-theme-secondary-900: #0b1020;
 
   --risu-theme-danger-50: #fef2f2;
   --risu-theme-danger-100: #fee2e2;

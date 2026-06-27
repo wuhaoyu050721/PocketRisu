@@ -30,7 +30,7 @@ export const nodeOnlyVer: string = typeof __APP_VERSION__ !== 'undefined' ? __AP
 // DBs and theme presets. Coerce it to '' (NodeOnly Standard) at every entry point
 // so SettingSelect's auto-normalization can't silently flip it to 'customHTML'.
 export function normalizeTheme(theme: string | undefined | null): string {
-    if (theme === undefined || theme === null || theme === 'custom') return ''
+    if (theme === undefined || theme === null || theme === 'custom' || theme === '') return 'mobilechat'
     return theme
 }
 

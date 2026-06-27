@@ -512,6 +512,7 @@ export const languageEnglish = {
     loreBook: "Lorebook",
     character: "Character",
     Chat: "Chat",
+    chat: "Chat",
     globalLoreInfo: "Character Lorebook applys to all chats in the character.",
     group: "Group",
     localLoreInfo: "Chat Lorebook only applies to the current chat.",
@@ -1248,6 +1249,8 @@ export const languageEnglish = {
     noWebGPU: "Your Browser or OS doesn't support WebGPU. this will slow down the performance significantly.",
     menuSideBar: "Menu Side Bar (Not recommended)",
     home: "Home",
+    discover: "Discover",
+    my: "My",
     showSavingIcon: "Show Saving Icon",
     pluginVersionWarn:
         "This is {{plugin_version}} version of the plugin. which is not compatible with this version of 小酒馆. please update the plugin to {{required_version}} version.",

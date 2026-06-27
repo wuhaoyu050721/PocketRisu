@@ -1,7 +1,7 @@
 <script lang="ts">
 
     import Suggestion from './Suggestion.svelte';
-    import { CameraIcon, ChevronUpIcon, ChevronDownIcon, ChevronsUpIcon, ChevronsDownIcon, DatabaseIcon, GlobeIcon, ImagePlusIcon, LanguagesIcon, Laugh, MenuIcon, MicOffIcon, PackageIcon, Plus, RefreshCcwIcon, ReplyIcon, Send, StepForwardIcon, XIcon, BrainIcon, ArrowDown, ZapIcon, Maximize2, Minimize2 } from "@lucide/svelte";
+    import { CameraIcon, ChevronUpIcon, ChevronDownIcon, ChevronsUpIcon, ChevronsDownIcon, DatabaseIcon, GlobeIcon, ImageIcon, ImagePlusIcon, LanguagesIcon, Laugh, MenuIcon, MicOffIcon, PackageIcon, Plus, RefreshCcwIcon, ReplyIcon, Send, StepForwardIcon, XIcon, BrainIcon, ArrowDown, ZapIcon, Maximize2, Minimize2 } from "@lucide/svelte";
     import ShDropdownMenu from 'src/lib/UI/GUI/ShDropdownMenu.svelte';
     import ShDropdownMenuTrigger from 'src/lib/UI/GUI/ShDropdownMenuTrigger.svelte';
     import ShDropdownMenuContent from 'src/lib/UI/GUI/ShDropdownMenuContent.svelte';
@@ -11,7 +11,7 @@
     import Chat from "./Chat.svelte";
     import { getAdditionalChatLoadPages, getInitialChatLoadPages } from 'src/ts/chatLoadPages';
     import { type Chat as ChatData, type Message } from "../../ts/storage/database.svelte";
-    import { DBState } from 'src/ts/stores.svelte';
+    import { DBState, settingsOpen, SettingsMenuIndex } from 'src/ts/stores.svelte';
     import { getCharImage } from "../../ts/characters";
     import { chatProcessStage, doingChat, sendChat } from "../../ts/process/index.svelte";
     import { ensureCurrentChatReady } from "../../ts/storage/chatStorage";
@@ -24,7 +24,9 @@ import { isMobile } from 'src/ts/platform'
     import { processScript } from "src/ts/process/scripts";
     import CreatorQuote from "./CreatorQuote.svelte";
     import { stopTTS } from "src/ts/process/tts";
-    import MainMenu from '../UI/MainMenu.svelte';
+    import HomePage from '../UI/HomePage.svelte';
+    import CharConfig from '../SideBars/CharConfig.svelte';
+    import SideChatList from '../SideBars/SideChatList.svelte';
     import AssetInput from './AssetInput.svelte';
     import { scrollWithinContainer } from './scrollWithin';
     import { aiLawApplies, chatFoldedState, chatFoldedStateMessageIndex, downloadFile } from 'src/ts/globalApi.svelte';
@@ -75,11 +77,24 @@ import { isMobile } from 'src/ts/platform'
     let chatsInstance: any = $state()
     let isScrollingToMessage = $state(false)
     let { openModuleList = $bindable(false), openChatList = $bindable(false), customStyle = '' }: Props = $props();
+    let headerMenuOpen = $state(false);
+    let showSideCharConfig = $state(false);
+    let showSideChatList = $state(false);
+    let headerAvatarCss = $state('');
     let currentCharacter = $derived(DBState.db.characters[$selectedCharID])
     let currentChatSlot = $derived(currentCharacter?.chats[currentCharacter.chatPage])
     let currentChatReady = $derived(!!currentChatSlot && !currentChatSlot._placeholder)
     let currentChat = $derived(currentChatReady ? currentChatSlot.message : [])
     let currentChatFmIndex = $derived(currentChatReady ? (currentChatSlot.fmIndex ?? -1) : -1)
+
+    // Load header avatar CSS asynchronously
+    $effect(() => {
+        if (currentCharacter?.image && !DBState.db.hideAllImages) {
+            getCharImage(currentCharacter.image, 'css').then(css => headerAvatarCss = css);
+        } else {
+            headerAvatarCss = '';
+        }
+    });
 
     // ─── Per-chat composer draft ────────────────────────────────────────────
     // The message input is kept per chat, stored outside the chat body, so it
@@ -885,7 +900,7 @@ import { isMobile } from 'src/ts/platform'
     {/if}
     {#if $selectedCharID < 0}
         {#if $PlaygroundStore === 0}
-            <MainMenu />
+            <HomePage />
         {:else}
             {#await loadPlaygroundMenu() then PlaygroundMenu}
                 <PlaygroundMenu />
@@ -897,12 +912,40 @@ import { isMobile } from 'src/ts/platform'
         </div>
     {:else}
         <div class="chat-topbar">
-            <div class="min-w-0">
-                <div class="chat-topbar-kicker">{currentChatSlot?.name ?? 'Chat'}</div>
-                <div class="chat-topbar-title">{currentCharacter?.name ?? ''}</div>
+            <button class="chat-back-btn" onclick={() => selectedCharID.set(-1)} aria-label="返回">
+                <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <div class="chat-avatar-sm">
+                {#if headerAvatarCss}
+                    <div class="chat-avatar-img" style={headerAvatarCss}></div>
+                {/if}
             </div>
-            <div class="chat-topbar-meta">
-                <span>{currentChat.length}</span>
+            <div class="chat-header-info">
+                <div class="chat-header-name">{currentCharacter?.name ?? ''}</div>
+                <div class="chat-header-status"><span class="status-dot"></span>在线</div>
+            </div>
+            <div style="position:relative;">
+                <button class="chat-more-btn" aria-label="更多" onclick={() => headerMenuOpen = !headerMenuOpen}>
+                    <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:currentColor;stroke-width:0;"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                </button>
+                {#if headerMenuOpen}
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <div class="header-menu-backdrop" onclick={() => headerMenuOpen = false} role="presentation"></div>
+                    <div class="header-menu">
+                        <button class="header-menu-item" onclick={() => { headerMenuOpen = false; showSideChatList = true; }}>
+                            <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            <span>聊天设置</span>
+                        </button>
+                        <button class="header-menu-item" onclick={() => { headerMenuOpen = false; showSideCharConfig = true; }}>
+                            <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+                            <span>角色设置</span>
+                        </button>
+                        <button class="header-menu-item" onclick={() => { headerMenuOpen = false; $SettingsMenuIndex = 3; settingsOpen.set(true); }}>
+                            <ImageIcon size={18} />
+                            <span>自定义背景</span>
+                        </button>
+                    </div>
+                {/if}
             </div>
         </div>
         {#snippet composerCluster()}
@@ -915,15 +958,17 @@ import { isMobile } from 'src/ts/platform'
                      plugins that locate the composer via div[class*="items-stretch"] (e.g. gemini-cache-keeper)
                      relied on the pre-redesign container class. Keep it so they can still find/anchor their UI,
                      and it scopes the timer re-flow rules in <style> below. -->
-                <div class="chat-composer flex flex-wrap items-center gap-1 px-2 py-1.5 transition-colors plugin-compat-items-stretch">
+                <div class="chat-composer plugin-compat-items-stretch">
+                <!-- Aux buttons row (hidden behind menu for clean design look) -->
+                <div class="composer-aux-row">
                 {#if DBState.db.characters[$selectedCharID]?.chaId !== '§playground'}
                     <ShDropdownMenu bind:open={openMenu}>
                         <ShDropdownMenuTrigger>
                             {#snippet child({ props })}
                                 <button {...props}
                                         aria-label="menu"
-                                        class="chat-tool-btn shrink-0 flex justify-center items-center w-9 h-9 rounded-full text-textcolor transition-colors">
-                                    <MenuIcon size={20} />
+                                        class="chat-tool-btn shrink-0 flex justify-center items-center w-8 h-8 rounded-full text-textcolor2 transition-colors">
+                                    <MenuIcon size={18} />
                                 </button>
                             {/snippet}
                         </ShDropdownMenuTrigger>
@@ -1003,20 +1048,43 @@ import { isMobile } from 'src/ts/platform'
                         })
                         DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage] = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage]
                     }}
-                         class="chat-tool-btn shrink-0 flex justify-center items-center w-9 h-9 rounded-full text-textcolor transition-colors cursor-pointer"
+                         class="chat-tool-btn shrink-0 flex justify-center items-center w-8 h-8 rounded-full text-textcolor2 transition-colors cursor-pointer"
                     >
-                        <Plus size={20} />
+                        <Plus size={18} />
                     </button>
                 {/if}
 
                 {#if DBState.db.useChatSticker}
                     <button type="button" onclick={()=>{toggleStickers = !toggleStickers}}
-                         class={"chat-tool-btn shrink-0 flex justify-center items-center w-9 h-9 rounded-full transition-colors cursor-pointer "+(toggleStickers ? 'text-green-500':'text-textcolor')}>
-                        <Laugh size={20}/>
+                         class={"chat-tool-btn shrink-0 flex justify-center items-center w-8 h-8 rounded-full transition-colors cursor-pointer "+(toggleStickers ? 'text-green-500':'text-textcolor2')}>
+                        <Laugh size={18}/>
                     </button>
                 {/if}
 
-                <textarea class="chat-input-area text-input-area outline-hidden text-textcolor px-2 py-1.5 min-w-0 bg-transparent input-text text-base resize-none overflow-x-hidden max-w-full"
+                <button
+                        onclick={() => composerFullscreen = true}
+                        aria-label={language.chatInputExpandTitle}
+                        class="chat-tool-btn shrink-0 flex justify-center items-center w-8 h-8 rounded-full text-textcolor2 transition-colors"
+                >
+                    <Maximize2 size={16} />
+                </button>
+
+                {#if DBState.db.characters[$selectedCharID]?.chaId !== '§playground'}
+                    <button
+                            type="button"
+                            onclick={sendContinue}
+                            disabled={!canContinueResponse || $doingChat || doingChatInputTranslate}
+                            aria-label={language.continueResponse}
+                            title={language.continueResponse}
+                            class="chat-tool-btn shrink-0 flex justify-center items-center w-8 h-8 rounded-full text-textcolor2 transition-colors"
+                    >
+                        <StepForwardIcon size={16} />
+                    </button>
+                {/if}
+                </div>
+                <!-- Main input row (textarea + send) matching design -->
+                <div class="composer-main-row">
+                <textarea class="chat-input-area text-input-area outline-hidden min-w-0 input-text resize-none overflow-x-hidden max-w-full"
                           class:flex-1={!multiline}
                           class:basis-full={multiline}
                           class:order-first={multiline}
@@ -1081,33 +1149,10 @@ import { isMobile } from 'src/ts/platform'
                           style:height={inputHeight}
                 ></textarea>
 
-                <button
-                        onclick={() => composerFullscreen = true}
-                        aria-label={language.chatInputExpandTitle}
-                        class="chat-tool-btn composer-expand-btn order-1 shrink-0 flex justify-center items-center w-9 h-9 rounded-full text-textcolor transition-colors"
-                        class:ml-auto={multiline}
-                >
-                    <Maximize2 size={18} />
-                </button>
-
-                {#if DBState.db.characters[$selectedCharID]?.chaId !== '搂playground'}
-                    <button
-                            type="button"
-                            onclick={sendContinue}
-                            disabled={!canContinueResponse || $doingChat || doingChatInputTranslate}
-                            aria-label={language.continueResponse}
-                            title={language.continueResponse}
-                            class="chat-continue-btn order-2 shrink-0 inline-flex items-center justify-center gap-1 rounded-full px-3 h-9 text-sm font-semibold transition-colors"
-                    >
-                        <StepForwardIcon size={16} />
-                        <span>继续</span>
-                    </button>
-                {/if}
-
                 {#if $doingChat || doingChatInputTranslate}
                     <button
                             aria-labelledby="cancel"
-                            class="chat-tool-btn order-3 shrink-0 flex justify-center items-center w-9 h-9 rounded-full text-textcolor transition-colors" onclick={abortChat}
+                            class="chat-send-btn shrink-0 flex justify-center items-center rounded-full transition-colors" onclick={abortChat}
                     >
                         <div class="loadmove chat-process-stage-{$chatProcessStage}"></div>
                     </button>
@@ -1115,7 +1160,7 @@ import { isMobile } from 'src/ts/platform'
                     <button
                             onclick={send}
                             aria-label={willResend ? language.reroll : language.send}
-                            class="chat-send-btn order-3 shrink-0 flex justify-center items-center w-9 h-9 rounded-full bg-primary text-white transition-colors button-icon-send"
+                            class="chat-send-btn shrink-0 flex justify-center items-center rounded-full transition-colors button-icon-send"
                     >
                         {#if willResend}
                             <RefreshCcwIcon size={18} />
@@ -1124,6 +1169,7 @@ import { isMobile } from 'src/ts/platform'
                         {/if}
                     </button>
                 {/if}
+                </div>
                 </div>
               </div>
             </div>
@@ -1373,82 +1419,248 @@ import { isMobile } from 'src/ts/platform'
         </div>
     </div>
 {/if}
+
+<!-- ⋮ menu overlays -->
+{#if showSideChatList}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="side-overlay" role="presentation" onclick={() => showSideChatList = false}>
+        <div class="side-panel" onclick={(e) => e.stopPropagation()} role="presentation">
+            <div class="side-panel-header">
+                <span>聊天设置</span>
+                <button class="side-panel-close" onclick={() => showSideChatList = false} aria-label="关闭">
+                    <XIcon size={20} />
+                </button>
+            </div>
+            <div class="side-panel-body">
+                <SideChatList bind:chara={DBState.db.characters[$selectedCharID]} />
+            </div>
+        </div>
+    </div>
+{/if}
+
+{#if showSideCharConfig}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="side-overlay" role="presentation" onclick={() => showSideCharConfig = false}>
+        <div class="side-panel" onclick={(e) => e.stopPropagation()} role="presentation">
+            <div class="side-panel-header">
+                <span>角色设置</span>
+                <button class="side-panel-close" onclick={() => showSideCharConfig = false} aria-label="关闭">
+                    <XIcon size={20} />
+                </button>
+            </div>
+            <div class="side-panel-body">
+                <CharConfig />
+            </div>
+        </div>
+    </div>
+{/if}
 <style>
-    .chat-shell {
-        background:
-            linear-gradient(180deg,
-                color-mix(in srgb, var(--risu-theme-bgcolor) 88%, var(--risu-theme-primary) 12%) 0%,
-                var(--risu-theme-bgcolor) 34%,
-                color-mix(in srgb, var(--risu-theme-bgcolor) 92%, black 8%) 100%);
-        color: var(--risu-theme-textcolor);
-        isolation: isolate;
+    /* ── Side panel overlays ── */
+    .side-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 55;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        display: flex;
+        justify-content: flex-end;
     }
 
-    .chat-shell::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        background:
-            linear-gradient(90deg, color-mix(in srgb, var(--risu-theme-primary) 10%, transparent), transparent 30%, color-mix(in srgb, var(--risu-theme-textcolor) 4%, transparent)),
-            repeating-linear-gradient(135deg, color-mix(in srgb, var(--risu-theme-textcolor) 3%, transparent) 0 1px, transparent 1px 18px);
-        opacity: 0.45;
-        z-index: 0;
+    .side-panel {
+        width: min(380px, 85vw);
+        height: 100%;
+        background: var(--risu-theme-darkbg);
+        border-left: 1px solid var(--risu-theme-borderc);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .side-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--risu-theme-borderc);
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--risu-theme-textcolor);
+        flex-shrink: 0;
+    }
+
+    .side-panel-close {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: transparent;
+        border: 0;
+        color: var(--risu-theme-textcolor2);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        transition: color 0.15s;
+    }
+
+    .side-panel-close:hover {
+        color: var(--risu-theme-textcolor);
+    }
+
+    .side-panel-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+    }
+
+    .side-panel-body::-webkit-scrollbar { display: none; }
+
+    .chat-shell {
+        background: var(--risu-theme-bgcolor);
+        color: var(--risu-theme-textcolor);
     }
 
     .chat-topbar {
         position: relative;
-        z-index: 32;
+        z-index: 10;
         flex: 0 0 auto;
-        width: min(calc(100% - 24px), 48rem);
-        min-height: 54px;
-        margin: 12px auto 10px;
+        width: 100%;
+        padding: 8px 12px;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 10px 14px;
-        border: 1px solid color-mix(in srgb, var(--risu-theme-primary) 32%, var(--risu-theme-darkborderc));
-        border-radius: 8px;
-        background:
-            linear-gradient(180deg,
-                color-mix(in srgb, var(--risu-theme-bgcolor) 94%, var(--risu-theme-primary) 6%),
-                color-mix(in srgb, var(--risu-theme-bgcolor) 90%, var(--risu-theme-darkbg) 10%));
-        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.2);
-        overflow: hidden;
+        gap: 10px;
+        border-bottom: 1px solid var(--risu-theme-borderc);
+        background: color-mix(in oklch, var(--risu-theme-darkbg) 90%, transparent);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
     }
 
-    .chat-topbar-kicker {
-        color: var(--risu-theme-textcolor2);
-        font-size: 11px;
-        line-height: 1.1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .chat-topbar-title {
-        color: var(--risu-theme-textcolor);
-        font-size: 16px;
-        font-weight: 650;
-        line-height: 1.25;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .chat-topbar-meta {
-        min-width: 34px;
-        height: 28px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+    .chat-back-btn {
+        width: 32px;
+        height: 32px;
         border-radius: 999px;
+        background: transparent;
+        border: 0;
         color: var(--risu-theme-textcolor);
-        background: color-mix(in srgb, var(--risu-theme-primary) 22%, transparent);
-        border: 1px solid color-mix(in srgb, var(--risu-theme-primary) 34%, transparent);
-        font-size: 12px;
-        font-variant-numeric: tabular-nums;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .chat-back-btn:hover {
+        color: var(--risu-theme-primary);
+    }
+
+    .chat-avatar-sm {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, color-mix(in oklch, var(--risu-theme-primary) 14%, transparent), color-mix(in oklch, var(--risu-theme-textcolor) 6%, transparent)), var(--risu-theme-darkbg);
+    border: 1px solid var(--risu-theme-borderc);
+    flex-shrink: 0;
+        position: relative;
+	        overflow: hidden;
+    }
+
+    .chat-avatar-img {
+        position: absolute;
+	        inset: 0;
+        background-size: cover;
+    background-position: center;
+    }
+
+    .status-dot {
+        display: inline-block;
+	        width: 7px;
+        height: 7px;
+    border-radius: 50%;
+    background: var(--risu-theme-success);
+        margin-right: 4px;
+	        vertical-align: middle;
+	        flex-shrink: 0;
+	    }
+
+	    .chat-header-info {
+	        flex: 1;
+	        min-width: 0;
+	    }
+
+	    .chat-header-name {
+	        font-size: 14px;
+	        font-weight: 600;
+	        line-height: 1.2;
+	        color: var(--risu-theme-textcolor);
+	    }
+
+	    .chat-header-status {
+	        font-size: 11px;
+	        color: var(--risu-theme-success);
+	        display: flex;
+	        align-items: center;
+	    }
+
+    .chat-more-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: transparent;
+        border: 0;
+        color: var(--risu-theme-textcolor);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: color 0.15s;
+    }
+
+    .chat-more-btn:hover {
+        color: var(--risu-theme-primary);
+    }
+
+    .header-menu-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+    }
+
+    .header-menu {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 4px);
+        z-index: 51;
+        background: var(--risu-theme-darkbg);
+        border: 1px solid var(--risu-theme-borderc);
+        border-radius: 12px;
+        padding: 4px;
+        min-width: 140px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .header-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 14px;
+        background: transparent;
+        border: 0;
+        border-radius: 8px;
+        color: var(--risu-theme-textcolor);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s;
+        text-align: left;
+    }
+
+    .header-menu-item:hover {
+        background: color-mix(in oklch, var(--risu-theme-primary) 14%, transparent);
+        color: var(--risu-theme-primary);
+    }
+
+    .header-menu-item :global(svg) {
+        flex-shrink: 0;
     }
 
     :global(.default-chat-screen) {
@@ -1461,37 +1673,63 @@ import { isMobile } from 'src/ts/platform'
     }
 
     .chat-composer-sticky {
-        background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--risu-theme-bgcolor) 94%, black 6%) 34%);
+        background: color-mix(in oklch, var(--risu-theme-darkbg) 90%, transparent);
         backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-top: 1px solid var(--risu-theme-borderc);
     }
 
     .chat-composer {
-        min-height: 52px;
-        border-radius: 8px;
-        border: 1px solid color-mix(in srgb, var(--risu-theme-primary) 30%, var(--risu-theme-darkborderc));
-        background: color-mix(in srgb, var(--risu-theme-bgcolor) 82%, var(--risu-theme-darkbg) 18%);
-        box-shadow: 0 16px 42px rgba(0, 0, 0, 0.22);
-        backdrop-filter: blur(16px);
+        border-radius: 12px;
+        border: 1px solid var(--risu-theme-borderc);
+        background: color-mix(in oklch, var(--risu-theme-darkbg) 90%, transparent);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        padding: 6px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
     }
 
     .chat-composer:focus-within {
-        border-color: color-mix(in srgb, var(--risu-theme-primary) 72%, var(--risu-theme-textcolor));
-        box-shadow:
-            0 18px 46px rgba(0, 0, 0, 0.26),
-            0 0 0 3px color-mix(in srgb, var(--risu-theme-primary) 18%, transparent);
+        border-color: var(--risu-theme-primary);
+        box-shadow: 0 0 0 3px color-mix(in oklch, var(--risu-theme-primary) 20%, transparent);
+    }
+
+    .composer-aux-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0 4px;
+    }
+
+    .composer-main-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
     }
 
     .chat-tool-btn:hover {
-        background: color-mix(in srgb, var(--risu-theme-primary) 18%, transparent);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--risu-theme-primary);
     }
 
     .chat-send-btn {
-        box-shadow: 0 10px 22px color-mix(in srgb, var(--risu-theme-primary) 34%, transparent);
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px;
+        border-radius: 50%;
+        background: var(--risu-theme-primary) !important;
+        color: #06111f !important;
+        box-shadow: none;
+        transition: opacity 0.15s;
+        border: 0;
+        cursor: pointer;
     }
 
     .chat-send-btn:hover {
-        background: color-mix(in srgb, var(--risu-theme-primary) 82%, white 8%);
-        transform: translateY(-1px);
+        opacity: 0.85;
+        background: var(--risu-theme-primary) !important;
     }
 
     .chat-continue-btn {
@@ -1518,12 +1756,27 @@ import { isMobile } from 'src/ts/platform'
     }
 
     .chat-input-area {
-        min-height: 38px;
-        line-height: 1.45;
+        flex: 1;
+        min-height: 40px;
+        max-height: 100px;
+        line-height: 1.4;
+        padding: 10px 14px;
+        background: var(--risu-theme-darkbg);
+        border: 1px solid var(--risu-theme-borderc);
+        border-radius: 20px;
+        color: var(--risu-theme-textcolor);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        font-size: 14px;
+        outline: none;
+        resize: none;
+    }
+
+    .chat-input-area:focus {
+        border-color: var(--risu-theme-primary);
     }
 
     .chat-input-area::placeholder {
-        color: color-mix(in srgb, var(--risu-theme-textcolor2) 78%, transparent);
+        color: var(--risu-theme-textcolor2);
     }
 
     .chat-translate-box,
@@ -1578,10 +1831,8 @@ import { isMobile } from 'src/ts/platform'
 
     @media (max-width: 640px) {
         .chat-topbar {
-            width: calc(100% - 16px);
-            min-height: 50px;
-            margin: 8px auto 8px;
-            padding: 8px 10px;
+        width: 100%;
+        padding: 8px 14px;
         }
 
         .chat-composer-sticky {

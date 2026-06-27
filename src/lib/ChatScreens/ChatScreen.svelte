@@ -9,7 +9,6 @@
     import ChatList from "../Others/ChatList.svelte";
     import TransitionImage from "./TransitionImage.svelte";
     import BackgroundDom from "./BackgroundDom.svelte";
-    import SideBarArrow from "../UI/GUI/SideBarArrow.svelte";
     import ModuleChatMenu from "../Setting/Pages/Module/ModuleChatMenu.svelte";
     let openChatList = $state(false)
     let openModuleList = $state(false)
@@ -41,7 +40,6 @@
 
 {#if DBState.db.theme === 'waifu'}
     <div class="grow h-full flex justify-center relative" style="{bgImg.length < 4 ? wallPaper : bgImg}">
-        <SideBarArrow />
         <BackgroundDom />
         {#if $selectedCharID >= 0}
             {#if DBState.db.characters[$selectedCharID].viewScreen !== 'none'}
@@ -56,7 +54,6 @@
     </div>
 {:else if DBState.db.theme === 'waifuMobile'}
     <div class="grow h-full relative" style={bgImg.length < 4 ? wallPaper : bgImg}>
-        <SideBarArrow />
         <BackgroundDom />
         <div class="w-full absolute z-10 bottom-0 left-0"
             class:per33={$selectedCharID >= 0 && DBState.db.characters[$selectedCharID].viewScreen !== 'none'}
@@ -73,8 +70,7 @@
         {/if}
     </div>
 {:else}
-    <div class="grow h-full min-w-0 relative justify-center flex">
-        <SideBarArrow />
+    <div class="grow h-full min-w-0 relative flex bg-bgcolor w-full">
         <BackgroundDom />
         <div style={bgImg} class="h-full w-full" class:max-w-6xl={DBState.db.classicMaxWidth}>
             {#if $selectedCharID >= 0}

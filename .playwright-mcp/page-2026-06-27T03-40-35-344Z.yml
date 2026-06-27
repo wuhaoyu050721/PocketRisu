@@ -1,0 +1,69 @@
+- main [ref=e3]:
+  - generic [ref=e10]:
+    - button "Open sidebar" [ref=e11] [cursor=pointer]:
+      - img [ref=e12]
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - heading "角色广场" [level=1] [ref=e18]
+        - button "刷新" [ref=e19] [cursor=pointer]:
+          - img [ref=e20]
+      - button "搜索角色卡…" [ref=e22] [cursor=pointer]:
+        - img [ref=e23]
+        - generic [ref=e24]: 搜索角色卡…
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - generic [ref=e27]: Realm Hub 最近上传
+          - button "获取更多角色" [ref=e28] [cursor=pointer]:
+            - text: 获取更多角色
+            - img [ref=e29]
+        - generic [ref=e30]:
+          - button "The Girl The Girl PacovGG again, more horror cuz this gooner app is pissing me th off ✌️🫩 female demon villain non-human" [ref=e31] [cursor=pointer]:
+            - generic [ref=e32]:
+              - img "The Girl" [ref=e33]
+              - generic [ref=e34]:
+                - generic [ref=e35]: The Girl
+                - generic "PacovGG again, more horror cuz this gooner app is pissing me th off ✌️🫩" [ref=e36]
+                - generic [ref=e37]:
+                  - generic [ref=e38]: female
+                  - generic [ref=e39]: demon
+                  - generic [ref=e40]: villain
+                  - generic [ref=e41]: non-human
+          - button "DCAU Expanded DCAU Expanded This is an expanded DCAU universe representing a world containing the entire animated continuity... rpg superhero fantasy" [ref=e42] [cursor=pointer]:
+            - generic [ref=e43]:
+              - img "DCAU Expanded" [ref=e44]
+              - generic [ref=e45]:
+                - generic [ref=e46]: DCAU Expanded
+                - generic [ref=e47]: This is an expanded DCAU universe representing a world containing the entire animated continuity...
+                - generic [ref=e48]:
+                  - generic [ref=e49]: rpg
+                  - generic [ref=e50]: superhero
+                  - generic [ref=e51]: fantasy
+          - button "자동응답기, 작가, 신. 자동응답기, 작가, 신. - 이름 외에 다른 페르소나 새부 설정은 권장되지 않습니다. - 아포칼립스 소재이므로, 정서적으로 민감하신 분은 다른 봇을 사용하길 권장합니다. *자동응답기에 갇힌 신.*" [ref=e52] [cursor=pointer]:
+            - generic [ref=e53]:
+              - img "자동응답기, 작가, 신." [ref=e54]
+              - generic [ref=e55]:
+                - generic [ref=e56]: 자동응답기, 작가, 신.
+                - generic "- 이름 외에 다른 페르소나 새부 설정은 권장되지 않습니다. - 아포칼립스 소재이므로, 정서적으로 민감하신 분은 다른 봇을 사용하길 권장합니다. *자동응답기에 갇힌 신.*" [ref=e57]
+          - 'button "Jujutsu Kaisen Simulator Jujutsu Kaisen Simulator ASSESTS : 7243 ASSETS MODULE LINK : https://drive.proton.me/urls/ZT15JT2VWW#SztURAIdAFvO First M..." [ref=e59] [cursor=pointer]':
+            - generic [ref=e60]:
+              - img "Jujutsu Kaisen Simulator" [ref=e61]
+              - generic [ref=e62]:
+                - generic [ref=e63]: Jujutsu Kaisen Simulator
+                - generic [ref=e64]: "ASSESTS : 7243 ASSETS MODULE LINK : https://drive.proton.me/urls/ZT15JT2VWW#SztURAIdAFvO First M..."
+          - button "Henry Henry Henry, the friend who's had a crush on you for 10 years. !This bot has a description of the burn... OC male yandere" [ref=e66] [cursor=pointer]:
+            - generic [ref=e67]:
+              - img "Henry" [ref=e68]
+              - generic [ref=e69]:
+                - generic [ref=e70]: Henry
+                - generic "Henry, the friend who's had a crush on you for 10 years. !This bot has a description of the burn!" [ref=e71]: Henry, the friend who's had a crush on you for 10 years. !This bot has a description of the burn...
+                - generic [ref=e72]:
+                  - generic [ref=e73]: OC
+                  - generic [ref=e74]: male
+                  - generic [ref=e75]: yandere
+          - button "黑匣 黑匣 No creator comments" [ref=e76] [cursor=pointer]:
+            - generic [ref=e77]:
+              - img "黑匣" [ref=e78]
+              - generic [ref=e79]:
+                - generic [ref=e80]: 黑匣
+                - generic "No creator comments" [ref=e81]
+  - region "Notifications alt+T"

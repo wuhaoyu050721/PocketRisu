@@ -1149,48 +1149,56 @@
      data-chat-id={DBState.db.characters?.[selIdState.selId]?.chats?.[DBState.db.characters?.[selIdState.selId]?.chatPage]?.message?.[idx]?.chatId ?? ''}
      style={isLastMemory ? `border-top:${DBState.db.memoryLimitThickness}px solid rgba(98, 114, 164, 0.7);` : ''}
      onclickcapture={handleButtonTriggerWithin}>
-    <div class="text-textcolor mt-1 ml-4 mr-4 mb-1 p-2 bg-transparent grow border-t-gray-900 border-opacity/30 border-transparent flexium items-start max-w-full" >
-        {#if DBState.db.theme === 'mobilechat' && !blankMessage}
-            <div class={role === 'user' ? "flex items-start w-full justify-end" : "flex items-start"}>
-                {#if role !== 'user'}
-                    {@render senderIcon({rounded: true})}
-                {/if}
-                <div
-                    class="bg-gray-100 rounded-lg p-3 max-w-[70%] mx-2"
-                    class:rounded-tl-none={role !== 'user'}
-                    class:rounded-tr-none={role === 'user'}
-                >
-                    <p class="text-gray-800">{@render textBox()}</p>
-                    {#if DBState.db.characters?.[selIdState.selId]?.chats?.[DBState.db.characters?.[selIdState.selId]?.chatPage]?.message?.[idx]?.time}
-                        <span class="text-xs text-textcolor2 mt-1 block">
-                            {new Intl.DateTimeFormat(undefined, {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                                month: '2-digit',
-                                day: '2-digit',
-                                hour12: false
-                            }).format(DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].time)}
-                        </span>
-                    {/if}
-                </div>
-                {#if role === 'user'}
-                    {@render senderIcon({rounded: true})}
-                {/if}
-            </div>
-        {:else if DBState.db.theme === 'cardboard' && !blankMessage}
+    <div class="text-textcolor mt-0 mx-1 mb-0 p-1 bg-bgcolor grow flexium items-start max-w-full" style="background:var(--risu-theme-bgcolor);" >
+        	        {#if DBState.db.theme === 'mobilechat' && !blankMessage}
+	            <div class={role === 'user' ? "flex items-start w-full justify-end" : "flex items-start"}>
+	                {#if role !== 'user'}
+	                    {@render senderIcon({rounded: true})}
+	                {/if}
+	                <div class="bubble-col {role === 'user' ? 'items-end' : 'items-start'}">
+	                    <div class="bubble py-[10px] px-[14px] mx-1 {role === 'user' ? 'bg-primary text-[#06111f] font-medium rounded-2xl rounded-br-[4px] max-w-[200%]' : 'bg-[#131b2f] border border-[#293653] rounded-2xl rounded-bl-[4px] max-w-[88%]'}">
+	                        <p class={role === 'user' ? 'text-[#06111f]' : 'text-textcolor'} style="font-size:14px; line-height:1.5;">{@render textBox()}</p>
+	                        {#if DBState.db.characters?.[selIdState.selId]?.chats?.[DBState.db.characters?.[selIdState.selId]?.chatPage]?.message?.[idx]?.time}
+	                            <span class="msg-ts" class:user-ts={role === 'user'}>
+	                                {new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }).format(DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].time)}
+	                            </span>
+	                        {/if}
+	                    </div>
+	                    {#if idx >= 0 && role !== 'user'}
+	                        <div class="bubble-actions">
+	                            {#if rerollIcon || altGreeting}
+	                                <button class="bubble-act-btn" onclick={unReroll} title="上一个"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+	                                {#if !DBState.db.hideMessagePageCount}
+	                                    <span class="bubble-page-count">{currentPage}/{totalPages}</span>
+	                                {/if}
+	                                <button class="bubble-act-btn" onclick={onNextSwipe} title="下一个"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+	                                <button class="bubble-act-btn" onclick={onReroll} title="重新生成"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
+	                            {/if}
+	                            <button class="bubble-act-btn" title="复制" onclick={async () => { await navigator.clipboard.writeText(message); }}><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+	                            {#if DBState.db.enableBookmark}
+	                                <button class="bubble-act-btn {isBookmarked ? 'text-yellow-400' : ''}" title="书签" onclick={toggleBookmark}><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:{isBookmarked ? 'currentColor' : 'none'};stroke-width:2;"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+	                            {/if}
+	                            <button class="bubble-act-btn" title="删除" onclick={rm}><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+	                        </div>
+	                    {/if}
+	                </div>
+	                {#if role === 'user'}
+	                    {@render senderIcon({rounded: true})}
+	                {/if}
+	            </div>
+	    {:else if DBState.db.theme === 'cardboard' && !blankMessage}
             <div class="w-full flex flex-col px-0 sm:px-4 py-4 relative">
-                <div class="bg-linear-to-b from-gray-100 to-gray-200 rounded-lg shadow-lg border-gray-400 border p-4 flex flex-col">
+                <div class="bg-linear-to-b from-[#1a2744] to-[#131b2f] rounded-lg shadow-lg border-darkborderc border p-4 flex flex-col">
                     <div class="flex gap-4 mt-2 flex-col sm:flex-row">
                         <div class="flex flex-col items-center">
                             <div class="sm:h-96 sm:w-72 sm:min-w-72 w-48 h-64">
                                 {@render senderIcon({rounded: false, styleFix:'height:100%;width:100%;'})}
                             </div>
-                            <h2 class="text-base font-bold text-gray-500 text-center mt-2 max-w-full text-ellipsis">{name}</h2>
+                            <h2 class="text-base font-bold text-textcolor2 text-center mt-2 max-w-full text-ellipsis">{name}</h2>
 
                         </div>
                         {#if editMode}
-                            <textarea class="grow h-138 sm:h-96 overflow-y-auto bg-transparent text-black p-2 mb-2 resize-none message-edit-area" bind:value={message}></textarea>
+                            <textarea class="grow h-138 sm:h-96 overflow-y-auto bg-transparent text-textcolor p-2 mb-2 resize-none message-edit-area" bind:value={message}></textarea>
                         {:else}
                             <div class="grow h-138 sm:h-96 overflow-y-auto p-2 mb-2 sm:mb-0">
                                 {@render textBox()}
@@ -1198,7 +1206,7 @@
                         {/if}
                     </div>
                 </div>
-                <div class="absolute bottom-0 right-0 bg-linear-to-b from-gray-200 to-gray-300 p-2 rounded-md border border-gray-400 text-gray-400">
+                <div class="absolute bottom-0 right-0 bg-linear-to-b from-[#1a2744] to-[#0f1a2e] p-2 rounded-md border border-darkborderc text-textcolor2">
                     {@render iconButtons({applyTextColors: false})}
                 </div>
             </div>
@@ -1206,7 +1214,7 @@
             {@render renderGuiHtmlPart(RenderGUIHtml(DBState.db.guiHTML))}
         {:else if DBState.db.theme === 'standardRisu' && !blankMessage}
             {@render senderIcon({rounded: DBState.db.roundIcons})}
-            <span class="flex flex-col ml-4 w-full max-w-full min-w-0 text-black">
+            <span class="flex flex-col ml-4 w-full max-w-full min-w-0 text-textcolor">
                 <div class="flexium items-center chat-width">
                     {#if DBState.db.characters[selIdState.selId]?.chaId === "§playground" && !blankMessage && DBState.db.characters[selIdState.selId]?.chats?.[DBState.db.characters[selIdState.selId]?.chatPage]?.message?.[idx]}
                         <span class="chat-width text-xl border-darkborderc flex items-center text-textcolor">
@@ -1231,7 +1239,7 @@
             </span>
         {:else}
             {@render senderIcon({rounded: DBState.db.roundIcons})}
-            <span class="flex flex-col ml-4 w-full max-w-full min-w-0 text-black">
+            <span class="flex flex-col ml-4 w-full max-w-full min-w-0 text-textcolor">
                 <div class="flexium items-center chat-width">
                     {#if DBState.db.characters[selIdState.selId]?.chaId === "§playground" && !blankMessage && DBState.db.characters[selIdState.selId]?.chats?.[DBState.db.characters[selIdState.selId]?.chatPage]?.message?.[idx]}
                         <span class="chat-width text-xl border-darkborderc flex items-center text-textcolor">
@@ -1348,7 +1356,75 @@
         background: color-mix(in srgb, var(--risu-theme-primary) 14%, transparent);
     }
 
-    @media (max-width: 640px) {
+    /* ── Message timestamp (matching chat-detail.html) ── */
+    .msg-ts {
+        display: block;
+        margin-top: 4px;
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        font-size: 10px;
+        opacity: 0.5;
+        color: var(--risu-theme-textcolor);
+        text-align: left;
+    }
+
+    .msg-ts.user-ts {
+    text-align: right;
+    }
+
+    /* ── Bubble action buttons ── */
+	    .bubble-col {
+	        display: flex;
+	        flex-direction: column;
+	        gap: 2px;
+	    }
+
+	    .bubble-col.items-end { align-items: flex-end; }
+	    .bubble-col.items-start { align-items: flex-start; }
+
+	    .bubble-actions {
+	        display: flex;
+	        align-items: center;
+	        gap: 2px;
+	        padding: 2px 8px;
+	        opacity: 0;
+	        transition: opacity 0.15s;
+	    }
+
+	    .bubble-col:hover .bubble-actions {
+	        opacity: 1;
+	    }
+
+	    .bubble-act-btn {
+	        width: 26px;
+	        height: 26px;
+	        border-radius: 6px;
+	        background: transparent;
+	        border: 0;
+	        color: var(--risu-theme-textcolor2);
+	        display: grid;
+	        place-items: center;
+	        cursor: pointer;
+	        transition: color 0.15s, background 0.15s;
+	    }
+
+	    .bubble-act-btn:hover {
+	        color: var(--risu-theme-primary);
+	        background: color-mix(in oklch, var(--risu-theme-primary) 12%, transparent);
+	    }
+
+	    .bubble-act-btn.text-yellow-400 {
+	        color: #facc15;
+	    }
+
+	    .bubble-page-count {
+	        font-family: 'JetBrains Mono', ui-monospace, monospace;
+	        font-size: 10px;
+	        color: var(--risu-theme-textcolor2);
+	        min-width: 28px;
+	        text-align: center;
+	    }
+
+	    @media (max-width: 640px) {
         .node-chat-row {
             padding-inline: 6px;
         }

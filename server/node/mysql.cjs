@@ -78,6 +78,13 @@ CREATE TABLE IF NOT EXISTS character_assets (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_char_assets (character_id, asset_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS kv_store (
+    \`key\`   VARCHAR(750) NOT NULL,
+    value   LONGBLOB NOT NULL,
+    updated_at BIGINT NOT NULL,
+    PRIMARY KEY (\`key\`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;
 
 async function initMysqlPool() {
@@ -88,6 +95,10 @@ async function initMysqlPool() {
     for (const stmt of statements) {
         await pool.execute(stmt);
     }
+    // Upgrade kv_store.value from MEDIUMBLOB to LONGBLOB for existing databases
+    try {
+        await pool.execute('ALTER TABLE kv_store MODIFY COLUMN value LONGBLOB NOT NULL');
+    } catch (_) { /* column already LONGBLOB or table not yet created — safe to ignore */ }
     console.log('[MySQL] Connection pool created, schema ensured.');
     return pool;
 }

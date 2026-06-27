@@ -1,0 +1,5 @@
+- main [ref=e3]:
+  - generic [ref=e5]:
+    - img [ref=e6]
+    - generic [ref=e9]: Loading...
+  - region "Notifications alt+T"

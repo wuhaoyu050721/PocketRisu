@@ -1,61 +1,58 @@
 <script>
     import { CharEmotion, ViewBoxsize } from '../../ts/stores.svelte';
-    import { onMount } from 'svelte';
     import TransitionImage from './TransitionImage.svelte';
     import { getEmotion } from '../../ts/util';
     
     import { DBState } from 'src/ts/stores.svelte';
 
     let box = $state();
-    let isResizing = false;
-    let initialWidth;
-    let initialHeight;
-    let initialX;
-    let initialY;
+    let isResizing = $state(false);
+    let activePointerId = null;
+    let initialWidth = 0;
+    let initialHeight = 0;
+    let initialX = 0;
+    let initialY = 0;
 
     function handleStart(event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (!box) return;
         isResizing = true;
+        activePointerId = event.pointerId;
         initialWidth = box.clientWidth;
         initialHeight = box.clientHeight;
-        initialX = event.clientX || event.touches[0].clientX;
-        initialY = event.clientY || event.touches[0].clientY;
+        initialX = event.clientX;
+        initialY = event.clientY;
+        event.currentTarget.setPointerCapture?.(event.pointerId);
     }
 
-    function handleEnd() {
+    function handleEnd(event) {
+        if (activePointerId !== null && event.pointerId !== activePointerId) return;
+        event?.currentTarget?.releasePointerCapture?.(event.pointerId);
         isResizing = false;
+        activePointerId = null;
     }
 
     function handleMove(event) {
+        if (activePointerId !== null && event.pointerId !== activePointerId) return;
         if (!isResizing) return;
         event.preventDefault();
+        event.stopPropagation();
 
-        const clientX = event.clientX || event.touches[0].clientX;
-        const clientY = event.clientY || event.touches[0].clientY;
+        const clientX = event.clientX;
+        const clientY = event.clientY;
         const deltaX = initialX - clientX;
         const deltaY = clientY - initialY;
 
-        const newWidth = Math.min(initialWidth + deltaX, window.innerWidth * 0.8);
-        const newHeight = Math.min(initialHeight + deltaY, window.innerHeight * 0.8);
+        const newWidth = Math.min(Math.max(initialWidth + deltaX, 120), window.innerWidth * 0.8);
+        const newHeight = Math.min(Math.max(initialHeight + deltaY, 120), window.innerHeight * 0.8);
 
         ViewBoxsize.set({
             width: newWidth,
             height: newHeight
         })
     }
-
-    onMount(() => {
-        window.addEventListener('mousemove', handleMove);
-        window.addEventListener('mouseup', handleEnd);
-        window.addEventListener('touchmove', handleMove, { passive: false });
-        window.addEventListener('touchend', handleEnd);
-
-        return () => {
-        window.removeEventListener('mousemove', handleMove);
-        window.removeEventListener('mouseup', handleEnd);
-        window.removeEventListener('touchmove', handleMove);
-        window.removeEventListener('touchend', handleEnd);
-        };
-    });
 </script>
 
 <style>
@@ -68,29 +65,52 @@
         width: 12rem;
         height: 12rem;
         z-index: 5;
+        box-shadow: none;
+        filter: none;
+        transition: none;
+        will-change: width, height;
+    }
+
+    .box :global(*) {
+        box-shadow: none !important;
+        filter: none !important;
+        transition-property: opacity !important;
+    }
+
+    .box.resizing {
+        user-select: none;
+        pointer-events: auto;
     }
 
     .resize-handle {
         position: absolute;
-        width: 16px;
-        height: 16px;
+        width: 22px;
+        height: 22px;
         border-top: 1px solid var(--risu-theme-borderc);
         border-right: 1px solid var(--risu-theme-borderc);
         cursor: sw-resize;
         bottom: 0;
         left: 0;
         z-index: 10;
+        touch-action: none;
+        user-select: none;
+    }
+
+    .resize-handle::after {
+        content: "";
+        position: absolute;
+        inset: -8px;
     }
 </style>
 
-<div class="box bg-darkbg/70" bind:this="{box}" style="width: {$ViewBoxsize.width}px; height: {$ViewBoxsize.height}px;">
+<div class="box bg-darkbg/70" class:resizing={isResizing} bind:this="{box}" style="width: {$ViewBoxsize.width}px; height: {$ViewBoxsize.height}px;">
     <!-- Your content here -->
     <TransitionImage classType='risu' src={getEmotion(DBState.db, $CharEmotion, 'plain')}/>
     <div role="button" tabindex="0"
       class="resize-handle"
-      onmousedown={handleStart}
-      onmouseup={handleEnd}
-      ontouchstart={handleStart}
-      ontouchend={handleEnd}
+      onpointerdown={handleStart}
+      onpointermove={handleMove}
+      onpointerup={handleEnd}
+      onpointercancel={handleEnd}
     ></div>
 </div>

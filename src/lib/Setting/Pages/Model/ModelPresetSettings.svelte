@@ -229,7 +229,7 @@
             {:else if submenu === 2}
                 {#if showAbilities}
                     <div class="flex flex-col gap-4 mb-6">
-                        <h3 class="text-sm font-semibold text-textcolor2 uppercase tracking-wide">{language.modelPresetAbilities}</h3>
+                        <h3 class="font-mono text-[10px] uppercase tracking-[0.1em] text-textcolor2 pt-2 pb-1">{language.modelPresetAbilities}</h3>
                         {#if showImageInputToggle}
                             <div class="flex items-center justify-between gap-3">
                                 <div class="flex flex-col gap-0.5 min-w-0">
@@ -298,7 +298,7 @@
                 {/if}
                 {#if showCacheSection}
                     <div class="flex flex-col gap-4 mb-6">
-                        <h3 class="text-sm font-semibold text-textcolor2 uppercase tracking-wide">{language.modelPresetCacheSection}</h3>
+                        <h3 class="font-mono text-[10px] uppercase tracking-[0.1em] text-textcolor2 pt-2 pb-1">{language.modelPresetCacheSection}</h3>
                         <div class="flex items-center justify-between gap-3">
                             <div class="flex flex-col gap-0.5 min-w-0">
                                 <span class="text-sm text-textcolor">{language.modelPresetCacheEnable}</span>
@@ -405,7 +405,7 @@
                     </ShButton>
 
                     {#if testResult}
-                        <div class="flex flex-col gap-1 rounded-md border p-3 text-sm {testResult.ok ? 'bg-success/20 border-success/40' : 'bg-draculared/20 border-draculared/40'}">
+                        <div class="flex flex-col gap-1 rounded-lg border p-3 text-sm {testResult.ok ? 'bg-success/20 border-success/40' : 'bg-draculared/20 border-draculared/40'}">
                             <span class="font-medium {testResult.ok ? 'text-success' : 'text-red-400'}">
                                 {testResult.ok ? language.modelPresetTestSuccess : language.modelPresetTestFail}
                                 <span class="text-textcolor2 font-normal ml-1">({testResult.latencyMs}ms)</span>
@@ -449,14 +449,14 @@
             </ShButton>
 
             {#if DBState.db.modelPresets.length === 0}
-                <div class="text-textcolor2 text-sm text-center py-8">
+                <div class="text-textcolor2 text-sm text-center py-12 border border-darkborderc rounded-lg bg-darkbg/20">
                     {language.modelPresetEmpty}
                 </div>
             {:else}
                 <div class="flex flex-col gap-1">
                     {#each DBState.db.modelPresets as preset, i (preset.id)}
                         <button
-                            class="flex items-center text-textcolor border border-darkborderc rounded-md p-3 cursor-pointer hover:bg-selected/30 transition-colors text-left"
+                            class="flex items-center text-textcolor border border-darkborderc rounded-lg p-3 cursor-pointer hover:bg-selected/30 hover:border-primary/20 transition-colors text-left w-full"
                             onclick={() => { editingId = preset.id; submenu = 0; }}
                         >
                             <div class="flex flex-col min-w-0 grow">

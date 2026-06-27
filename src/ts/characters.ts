@@ -526,6 +526,7 @@ export function characterFormatUpdate(indexOrCharacter:number|character, arg:{
     updateInteraction?:boolean,
 } = {}){
     let cha = typeof(indexOrCharacter) === 'number' ? getCharacterByIndex(indexOrCharacter) : indexOrCharacter
+    if (!cha || !cha.chats) return;
     if(cha.chats.length === 0){
         cha.chats = [{
             message: [],
@@ -780,6 +781,7 @@ export function changeChar(index: number, arg:{
       return
     }
     const char = getDatabase().characters[index]
+    if (!char) return;
     reseter();
     chatDeselected.set(false)
     characterFormatUpdate(index, {

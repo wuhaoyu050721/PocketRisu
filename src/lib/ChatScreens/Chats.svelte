@@ -229,4 +229,4 @@
 
 </script>
 
-<div class="flex flex-col-reverse" bind:this={chatBody}></div>
+<div class="flex flex-col-reverse min-h-0 w-full" bind:this={chatBody}></div>

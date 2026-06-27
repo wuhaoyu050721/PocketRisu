@@ -15,5 +15,5 @@
 {:else if item.options?.level === 'warning'}
     <span class="text-draculared text-xs mb-2 {item.classes ?? ''}">{getLabel(item)}</span>
 {:else}
-    <span class="text-textcolor mt-4 mb-2 {item.classes ?? ''}">{getLabel(item)}</span>
+    <span class="font-mono text-[10px] uppercase tracking-[0.1em] text-textcolor2 mt-4 mb-2 block {item.classes ?? ''}">{getLabel(item)}</span>
 {/if}

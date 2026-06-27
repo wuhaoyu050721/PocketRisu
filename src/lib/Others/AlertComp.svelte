@@ -204,7 +204,7 @@
 }}></svelte:window>
 
 {#if $alertStore.type !== 'none' &&  $alertStore.type !== 'cardexport' && $alertStore.type !== 'branches' && $alertStore.type !== 'selectModule' && $alertStore.type !== 'pukmakkurit' && $alertStore.type !== 'requestlogs' && $alertStore.type !== 'error' && $alertStore.type !== 'normal' && $alertStore.type !== 'markdown' && $alertStore.type !== 'ask' && $alertStore.type !== 'pluginconfirm' && $alertStore.type !== 'tos' && $alertStore.type !== 'input' && $alertStore.type !== 'select' && $alertStore.type !== 'wait' && $alertStore.type !== 'wait2' && $alertStore.type !== 'progress' && $alertStore.type !== 'confirmMulti'}
-    <div class="absolute w-full h-full z-50 bg-black/50 flex justify-center items-center">
+    <div class="fixed inset-0 z-[70] bg-black/50 flex justify-center items-center">
         <div class="bg-darkbg p-4 break-any rounded-md flex flex-col max-w-3xl  max-h-full overflow-y-auto">
             {#if $alertStore.type === 'selectChar'}
                 <h2 class="text-green-700 mt-0 mb-2 w-40 max-w-full">Select</h2>
@@ -388,97 +388,55 @@
                     {/if}
                 {/if}
             {:else if $alertStore.type === 'addchar'}
-                <div class="w-2xl flex flex-col max-w-full">
-
-                    <button class="border-darkborderc border py-12 px-8 flex rounded-md hover:ring-2 justify-center items-center" onclick={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        alertStore.set({
-                            type: 'none',
-                            msg: 'importFromRealm'
-                        })
-                    }}>
-                        <div class="flex flex-col justify-start items-start">
-                            <span class="text-2xl font-bold">{language.importFromRealm}</span>
-                            <span class="text-textcolor2">{language.importFromRealmDesc}</span>
-                        </div>
-                        <div class="ml-9 float-right flex-1 flex justify-end">
-                            <ChevronRightIcon />
-                        </div>
-                    </button>
-                    <button class="border-darkborderc border py-2 px-8 flex rounded-md hover:ring-2 items-center mt-2" onclick={((e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        alertStore.set({
-                            type: 'none',
-                            msg: 'importCharacter'
-                        })
-                    })}>
-                        <div class="flex flex-col justify-start items-start">
-                            <span>{language.importCharacter}</span>
-                        </div>
-                        <div class="ml-9 float-right flex-1 flex justify-end">
-                            <ChevronRightIcon />
-                        </div>
-                    </button>
-                    <button class="border-darkborderc border py-2 px-8 flex rounded-md hover:ring-2 items-center mt-2" onclick={((e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        alertStore.set({
-                            type: 'none',
-                            msg: 'importCharacterTranslate'
-                        })
-                    })}>
-                        <div class="flex flex-col justify-start items-start">
-                            <span>导入角色并翻译为中文</span>
-                            <span class="text-textcolor2 text-sm">适合上传外文角色卡</span>
-                        </div>
-                        <div class="ml-9 float-right flex-1 flex justify-end">
-                            <ChevronRightIcon />
-                        </div>
-                    </button>
-                    <button class="border-darkborderc border py-2 px-8 flex rounded-md hover:ring-2 items-center mt-2" onclick={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        alertStore.set({
-                            type: 'none',
-                            msg: 'createfromScratch'
-                        })
-                    }}>
-                        <div class="flex flex-col justify-start items-start">
-                            <span>{language.createfromScratch}</span>
-                        </div>
-                        <div class="ml-9 float-right flex-1 flex justify-end">
-                            <ChevronRightIcon />
-                        </div>
-                    </button>
-                    <button class="border-darkborderc border py-2 px-8 flex rounded-md hover:ring-2 items-center mt-2" onclick={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        alertStore.set({
-                            type: 'none',
-                            msg: 'importPackage'
-                        })
-                    }}>
-                        <div class="flex flex-col justify-start items-start">
-                            <span>{language.characterPackageImport}</span>
-                        </div>
-                        <div class="ml-9 float-right flex-1 flex justify-end">
-                            <ChevronRightIcon />
-                        </div>
-                    </button>
-                    <button class="border-darkborderc border py-2 px-8 flex rounded-md hover:ring-2 items-center mt-2" onclick={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        alertStore.set({
-                            type: 'none',
-                            msg: 'cancel'
-                        })
-                    }}>
-                        <div class="flex flex-col justify-start items-start">
-                            <span>{language.cancel}</span>
-                        </div>
-                    </button>
+                <div class="addchar-dialog">
+                    <div class="addchar-header">
+                        <h2>添加角色</h2>
+                        <button class="addchar-close" onclick={(e) => { e.stopPropagation(); alertStore.set({ type: 'none', msg: '' }); }}>
+                            <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <div class="addchar-grid">
+                        <button class="addchar-item primary" onclick={(e) => { e.stopPropagation(); e.preventDefault(); alertStore.set({ type: 'none', msg: 'importFromRealm' }); }}>
+                            <div class="addchar-icon"><svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+                            <div class="addchar-text">
+                                <span class="addchar-title">{language.importFromRealm}</span>
+                                <span class="addchar-desc">{language.importFromRealmDesc}</span>
+                            </div>
+                            <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;"><path d="m9 18 6-6-6-6"/></svg>
+                        </button>
+                        <button class="addchar-item" onclick={(e) => { e.stopPropagation(); e.preventDefault(); alertStore.set({ type: 'none', msg: 'importCharacter' }); }}>
+                            <div class="addchar-icon"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></div>
+                            <div class="addchar-text">
+                                <span class="addchar-title">{language.importCharacter}</span>
+                                <span class="addchar-desc">从本地文件导入 PNG/JSON 角色卡</span>
+                            </div>
+                            <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;"><path d="m9 18 6-6-6-6"/></svg>
+                        </button>
+                        <button class="addchar-item" onclick={(e) => { e.stopPropagation(); e.preventDefault(); alertStore.set({ type: 'none', msg: 'importCharacterTranslate' }); }}>
+                            <div class="addchar-icon"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M5 8l6 6M13 8l-6 6M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/><path d="M2 12h20M12 2v20"/></svg></div>
+                            <div class="addchar-text">
+                                <span class="addchar-title">导入并翻译为中文</span>
+                                <span class="addchar-desc">自动将外文角色卡翻译为中文</span>
+                            </div>
+                            <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;"><path d="m9 18 6-6-6-6"/></svg>
+                        </button>
+                        <button class="addchar-item" onclick={(e) => { e.stopPropagation(); e.preventDefault(); alertStore.set({ type: 'none', msg: 'createfromScratch' }); }}>
+                            <div class="addchar-icon"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M12 5v14M5 12h14"/></svg></div>
+                            <div class="addchar-text">
+                                <span class="addchar-title">{language.createfromScratch}</span>
+                                <span class="addchar-desc">从空白模板手动创建角色</span>
+                            </div>
+                            <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;"><path d="m9 18 6-6-6-6"/></svg>
+                        </button>
+                        <button class="addchar-item" onclick={(e) => { e.stopPropagation(); e.preventDefault(); alertStore.set({ type: 'none', msg: 'importPackage' }); }}>
+                            <div class="addchar-icon"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M16 16v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M12 2h8v8M21 2 10 13"/></svg></div>
+                            <div class="addchar-text">
+                                <span class="addchar-title">{language.characterPackageImport}</span>
+                                <span class="addchar-desc">导入 .risup 角色预设包</span>
+                            </div>
+                            <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;"><path d="m9 18 6-6-6-6"/></svg>
+                        </button>
+                    </div>
                 </div>
             {/if}
         </div>
@@ -796,6 +754,7 @@
 
 <ShDialog
     open={$alertStore.type === 'error'}
+    tier="top"
     size="lg"
     onOpenChange={(v) => {
         if (!v && $alertStore.type === 'error') {
@@ -851,6 +810,7 @@
 
 <ShDialog
     open={$alertStore.type === 'normal'}
+    tier="top"
     onOpenChange={(v) => {
         if (!v && $alertStore.type === 'normal') {
             alertStore.set({ type: 'none', msg: '' })
@@ -871,6 +831,7 @@
 
 <ShDialog
     open={$alertStore.type === 'markdown'}
+    tier="top"
     size="lg"
     onOpenChange={(v) => {
         if (!v && $alertStore.type === 'markdown') {
@@ -893,6 +854,7 @@
 
 <ShAlertDialog
     open={$alertStore.type === 'ask'}
+    tier="top"
     closeOnOutsideClick={true}
     onOpenChange={(v) => {
         if (!v && $alertStore.type === 'ask') {
@@ -909,6 +871,7 @@
 
 <ShAlertDialog
     open={$alertStore.type === 'pluginconfirm'}
+    tier="top"
     closeOnOutsideClick={true}
     onOpenChange={(v) => {
         if (!v && $alertStore.type === 'pluginconfirm') {
@@ -975,6 +938,7 @@
 
 <ShAlertDialog
     open={$alertStore.type === 'confirmMulti'}
+    tier="top"
     closeOnEscape={true}
     closeOnOutsideClick={true}
     onOpenChange={(v) => {
@@ -1288,6 +1252,96 @@
         word-break: normal;
         overflow-wrap: anywhere;
     }
+
+    /* ── Add character dialog ── */
+    .addchar-dialog {
+        background: var(--risu-theme-darkbg);
+        border: 1px solid var(--risu-theme-borderc);
+        border-radius: 16px;
+        padding: 6px 0;
+        width: 420px;
+        max-width: 90vw;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .addchar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 20px 10px;
+    }
+
+    .addchar-header h2 {
+        font-size: 17px;
+        font-weight: 700;
+        margin: 0;
+        color: var(--risu-theme-textcolor);
+    }
+
+    .addchar-close {
+        width: 32px; height: 32px;
+        border-radius: 999px;
+        background: transparent;
+        border: 0;
+        color: var(--risu-theme-textcolor2);
+        display: grid; place-items: center;
+        cursor: pointer;
+        transition: color 0.15s;
+    }
+
+    .addchar-close:hover { color: var(--risu-theme-textcolor); }
+
+    .addchar-grid { display: flex; flex-direction: column; }
+
+    .addchar-item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        width: 100%;
+        padding: 14px 20px;
+        background: transparent;
+        border: 0;
+        border-top: 1px solid var(--risu-theme-borderc);
+        color: var(--risu-theme-textcolor);
+        cursor: pointer;
+        text-align: left;
+        transition: background 0.15s;
+    }
+
+    .addchar-item:first-of-type { border-top: 0; }
+
+    .addchar-item:hover { background: color-mix(in oklch, var(--risu-theme-primary) 8%, transparent); }
+
+    .addchar-item.primary {
+        background: color-mix(in oklch, var(--risu-theme-primary) 10%, transparent);
+    }
+
+    .addchar-item.primary:hover {
+        background: color-mix(in oklch, var(--risu-theme-primary) 18%, transparent);
+    }
+
+    .addchar-item.primary .addchar-title { color: var(--risu-theme-primary); }
+
+    .addchar-icon {
+        width: 36px; height: 36px;
+        border-radius: 10px;
+        background: color-mix(in oklch, var(--risu-theme-primary) 14%, transparent);
+        display: grid; place-items: center;
+        flex-shrink: 0;
+        color: var(--risu-theme-primary);
+    }
+
+    .addchar-text {
+        flex: 1; min-width: 0;
+        display: flex; flex-direction: column;
+        gap: 2px;
+    }
+
+    .addchar-title { font-size: 14px; font-weight: 600; line-height: 1.25; }
+
+    .addchar-desc { font-size: 12px; color: var(--risu-theme-textcolor2); line-height: 1.3; }
 
     .stack-trace-wrap {
         position: relative;

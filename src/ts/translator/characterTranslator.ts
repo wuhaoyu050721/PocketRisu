@@ -297,6 +297,10 @@ function isAuthOrConfigError(result: requestDataResponse): boolean {
         || message.includes("auth")
         || message.includes("permission_denied")
         || message.includes("unregistered callers")
+        // When the translate/auxiliary model is not configured (empty model id),
+        // the browser throws a "Failed to fetch" TypeError (no valid URL to
+        // call). Treat this as a config gap so we fall back to the main model.
+        || message.includes("failed to fetch")
     );
 }
 
@@ -400,7 +404,22 @@ async function requestConfiguredDeepSeek(formated: OpenAIChat[], abortSignal?: A
     };
 }
 
+/**
+ * Check whether the sub-model path is usable. Returns false when no model is
+ * configured (classic mode with empty id, or model-preset-binding mode with
+ * no preset bound) — the caller should skip this mode and use the main model.
+ */
+function hasTranslateModelConfigured(): boolean {
+    const db = getDatabase();
+    // Classic mode: subModel is a model id string
+    if (db.subModel && db.subModel.trim().length > 0) return true;
+    // Model-preset-binding: a preset may be bound from the model preset system
+    if (db.seperateModelsForAxModels && db.seperateModels?.['translate']) return true;
+    return false;
+}
+
 async function requestCharacterTranslation(formated: OpenAIChat[], abortSignal?: AbortSignal): Promise<requestDataResponse> {
+    const db = getDatabase();
     const requestArg = {
         formated,
         bias: {},
@@ -411,37 +430,44 @@ async function requestCharacterTranslation(formated: OpenAIChat[], abortSignal?:
         tools: [],
     };
 
-    const translateResult = await requestChatData(requestArg, "translate", abortSignal);
-    if (!isAuthOrConfigError(translateResult)) {
-        return translateResult;
-    }
-
-    if (abortSignal?.aborted) {
-        return {
-            type: "fail",
-            noRetry: true,
-            result: "Aborted",
-        };
-    }
-
-    const mainResult = await requestChatData(requestArg, "model", abortSignal);
-    if (mainResult.type === "fail") {
-        const deepSeekResult = await requestConfiguredDeepSeek(formated, abortSignal);
-        if (deepSeekResult?.type === "success") {
-            return deepSeekResult;
+    // Translation is a utility — bypass per-chat model-preset binding.
+    // If a main model is configured, use it directly regardless of per-chat
+    // binding status. The sub/translate model is a nice-to-have; skip it
+    // when the main model alone is sufficient.
+    const mainModelId = db.aiModel;
+    if (mainModelId && mainModelId.trim().length > 0) {
+        const result = await requestChatData(
+            { ...requestArg, staticModel: mainModelId },
+            "model",
+            abortSignal,
+        );
+        if (result.type === "success" || (result.type === "fail" && result.noRetry)) {
+            return result;
         }
-
+        // Fall through to configured DeepSeek
+        const deepSeekResult = await requestConfiguredDeepSeek(formated, abortSignal);
+        if (deepSeekResult?.type === "success") return deepSeekResult;
         return {
-            ...mainResult,
-            result: [
-                `Translation model failed: ${translateResult.result}`,
-                `Main model fallback also failed: ${mainResult.result}`,
-                deepSeekResult ? `Configured DeepSeek fallback also failed: ${deepSeekResult.result}` : "No configured DeepSeek fallback was found.",
-            ].join("\n"),
+            ...result,
+            result: `Main model (${mainModelId}) failed: ${result.result}. DeepSeek fallback also failed.`,
         };
     }
 
-    return mainResult;
+    // No main model — try sub/translate model
+    if (hasTranslateModelConfigured()) {
+        const translateResult = await requestChatData(requestArg, "translate", abortSignal);
+        if (!isAuthOrConfigError(translateResult)) return translateResult;
+    }
+
+    // Last resort: DeepSeek
+    const deepSeekResult = await requestConfiguredDeepSeek(formated, abortSignal);
+    if (deepSeekResult?.type === "success") return deepSeekResult;
+
+    return {
+        type: "fail",
+        noRetry: true,
+        result: "No AI model configured. Please configure a model in Settings.",
+    };
 }
 
 async function withCharacterTranslationTimeout<T>(run: (abortSignal: AbortSignal) => Promise<T>): Promise<T> {

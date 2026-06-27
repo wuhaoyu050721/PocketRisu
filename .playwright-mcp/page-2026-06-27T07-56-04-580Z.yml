@@ -1,0 +1,58 @@
+- main [ref=e3]:
+  - generic [ref=e10]:
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - paragraph [ref=e18]: 6 月 27 日 · 星期六
+          - heading "对话" [level=1] [ref=e19]
+        - button "新对话" [ref=e20] [cursor=pointer]:
+          - img [ref=e21]
+      - generic [ref=e23]:
+        - img [ref=e24]
+        - generic [ref=e25]: 搜索对话或角色…
+      - generic [ref=e26]: 最近
+      - generic [ref=e27]:
+        - button "Unnamed 点击开始对话 25分钟前" [ref=e29] [cursor=pointer]:
+          - generic [ref=e31]:
+            - generic [ref=e32]: Unnamed
+            - generic [ref=e33]: 点击开始对话
+          - generic [ref=e34]: 25分钟前
+        - button "亡国的公主 点击开始对话 27分钟前" [ref=e36] [cursor=pointer]:
+          - generic [ref=e38]:
+            - generic [ref=e39]: 亡国的公主
+            - generic [ref=e40]: 点击开始对话
+          - generic [ref=e41]: 27分钟前
+        - button "苏墨 点击开始对话 1小时前" [ref=e43] [cursor=pointer]:
+          - generic [ref=e45]:
+            - generic [ref=e46]: 苏墨
+            - generic [ref=e47]: 点击开始对话
+          - generic [ref=e48]: 1小时前
+        - button "林雪音 点击开始对话 6小时前" [ref=e50] [cursor=pointer]:
+          - generic [ref=e52]:
+            - generic [ref=e53]: 林雪音
+            - generic [ref=e54]: 点击开始对话
+          - generic [ref=e55]: 6小时前
+        - button "烈焰 点击开始对话 4天前" [ref=e57] [cursor=pointer]:
+          - generic [ref=e59]:
+            - generic [ref=e60]: 烈焰
+            - generic [ref=e61]: 点击开始对话
+          - generic [ref=e62]: 4天前
+        - button "Mon3tr 点击开始对话 5天前" [ref=e64] [cursor=pointer]:
+          - generic [ref=e66]:
+            - generic [ref=e67]: Mon3tr
+            - generic [ref=e68]: 点击开始对话
+          - generic [ref=e69]: 5天前
+    - navigation [ref=e70]:
+      - button "聊天" [ref=e71] [cursor=pointer]:
+        - img [ref=e72]
+        - generic [ref=e73]: 聊天
+      - button "角色" [ref=e74] [cursor=pointer]:
+        - img [ref=e75]
+        - generic [ref=e76]: 角色
+      - button "发现" [ref=e77] [cursor=pointer]:
+        - img [ref=e78]
+        - generic [ref=e79]: 发现
+      - button "我的" [ref=e80] [cursor=pointer]:
+        - img [ref=e81]
+        - generic [ref=e82]: 我的
+  - region "Notifications alt+T"

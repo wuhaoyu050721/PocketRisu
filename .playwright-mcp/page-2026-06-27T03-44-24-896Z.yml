@@ -1,0 +1,83 @@
+- main [ref=e3]:
+  - generic [ref=e10]:
+    - generic [ref=e12]:
+      - button "Close sidebar" [ref=e13] [cursor=pointer]:
+        - img [ref=e14]
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - heading "角色广场" [level=1] [ref=e20]
+          - button "刷新" [ref=e21] [cursor=pointer]:
+            - img [ref=e22]
+        - button "搜索角色卡…" [ref=e24] [cursor=pointer]:
+          - img [ref=e25]
+          - generic [ref=e26]: 搜索角色卡…
+        - generic [ref=e27]:
+          - generic [ref=e28]:
+            - generic [ref=e29]: Realm Hub 最近上传
+            - button "获取更多角色" [ref=e30] [cursor=pointer]:
+              - text: 获取更多角色
+              - img [ref=e31]
+          - generic [ref=e32]:
+            - button "The Girl The Girl PacovGG again, more horror cuz this gooner app is pissing me th off ✌️🫩 female demon villain non-human" [ref=e33] [cursor=pointer]:
+              - generic [ref=e34]:
+                - img "The Girl" [ref=e35]
+                - generic [ref=e36]:
+                  - generic [ref=e37]: The Girl
+                  - generic "PacovGG again, more horror cuz this gooner app is pissing me th off ✌️🫩" [ref=e38]
+                  - generic [ref=e39]:
+                    - generic [ref=e40]: female
+                    - generic [ref=e41]: demon
+                    - generic [ref=e42]: villain
+                    - generic [ref=e43]: non-human
+            - button "DCAU Expanded DCAU Expanded This is an expanded DCAU universe representing a world containing the entire animated continuity... rpg superhero fantasy" [ref=e45] [cursor=pointer]:
+              - generic [ref=e46]:
+                - img "DCAU Expanded" [ref=e47]
+                - generic [ref=e48]:
+                  - generic [ref=e49]: DCAU Expanded
+                  - generic [ref=e50]: This is an expanded DCAU universe representing a world containing the entire animated continuity...
+                  - generic [ref=e51]:
+                    - generic [ref=e52]: rpg
+                    - generic [ref=e53]: superhero
+                    - generic [ref=e54]: fantasy
+            - button "자동응답기, 작가, 신. 자동응답기, 작가, 신. - 이름 외에 다른 페르소나 새부 설정은 권장되지 않습니다. - 아포칼립스 소재이므로, 정서적으로 민감하신 분은 다른 봇을 사용하길 권장합니다. *자동응답기에 갇힌 신.*" [ref=e56] [cursor=pointer]:
+              - generic [ref=e57]:
+                - img "자동응답기, 작가, 신." [ref=e58]
+                - generic [ref=e59]:
+                  - generic [ref=e60]: 자동응답기, 작가, 신.
+                  - generic "- 이름 외에 다른 페르소나 새부 설정은 권장되지 않습니다. - 아포칼립스 소재이므로, 정서적으로 민감하신 분은 다른 봇을 사용하길 권장합니다. *자동응답기에 갇힌 신.*" [ref=e61]
+            - 'button "Jujutsu Kaisen Simulator Jujutsu Kaisen Simulator ASSESTS : 7243 ASSETS MODULE LINK : https://drive.proton.me/urls/ZT15JT2VWW#SztURAIdAFvO First M..." [ref=e63] [cursor=pointer]':
+              - generic [ref=e64]:
+                - img "Jujutsu Kaisen Simulator" [ref=e65]
+                - generic [ref=e66]:
+                  - generic [ref=e67]: Jujutsu Kaisen Simulator
+                  - generic [ref=e68]: "ASSESTS : 7243 ASSETS MODULE LINK : https://drive.proton.me/urls/ZT15JT2VWW#SztURAIdAFvO First M..."
+            - button "Henry Henry Henry, the friend who's had a crush on you for 10 years. !This bot has a description of the burn... OC male yandere" [ref=e70] [cursor=pointer]:
+              - generic [ref=e71]:
+                - img "Henry" [ref=e72]
+                - generic [ref=e73]:
+                  - generic [ref=e74]: Henry
+                  - generic "Henry, the friend who's had a crush on you for 10 years. !This bot has a description of the burn!" [ref=e75]: Henry, the friend who's had a crush on you for 10 years. !This bot has a description of the burn...
+                  - generic [ref=e76]:
+                    - generic [ref=e77]: OC
+                    - generic [ref=e78]: male
+                    - generic [ref=e79]: yandere
+            - button "黑匣 黑匣 No creator comments" [ref=e81] [cursor=pointer]:
+              - generic [ref=e82]:
+                - img "黑匣" [ref=e83]
+                - generic [ref=e84]:
+                  - generic [ref=e85]: 黑匣
+                  - generic "No creator comments" [ref=e86]
+    - navigation [ref=e88]:
+      - button "聊天" [ref=e89] [cursor=pointer]:
+        - img [ref=e90]
+        - generic [ref=e91]: 聊天
+      - button "角色" [ref=e92] [cursor=pointer]:
+        - img [ref=e93]
+        - generic [ref=e94]: 角色
+      - button "发现" [ref=e95] [cursor=pointer]:
+        - img [ref=e96]
+        - generic [ref=e97]: 发现
+      - button "我的" [ref=e98] [cursor=pointer]:
+        - img [ref=e99]
+        - generic [ref=e100]: 我的
+  - region "Notifications alt+T"

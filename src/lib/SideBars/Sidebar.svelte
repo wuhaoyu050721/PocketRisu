@@ -690,6 +690,26 @@
           openGrid();
         }}><LayoutGridIcon /></BarIcon
       >
+      {#if $authStore.mode === 'multi'}
+        <div class="hamburger-menu-gap"></div>
+        {#if $authStore.user}
+          <BarIcon
+            onClick={() => {
+              closeHamburgerMenu();
+              reseter();
+              doLogout();
+            }}><LogOutIcon /></BarIcon
+          >
+        {:else}
+          <BarIcon
+            onClick={() => {
+              closeHamburgerMenu();
+              reseter();
+              openLoginOverlay();
+            }}><LogInIcon /></BarIcon
+          >
+        {/if}
+      {/if}
       {#if additionalHamburgerMenu.length > 0}
         <div class="hamburger-menu-separator"></div>
         {#each additionalHamburgerMenu as menu}
@@ -1022,6 +1042,26 @@
           openGrid();
         }}><LayoutGridIcon /></BarIcon
       >
+      {#if $authStore.mode === 'multi'}
+        <div class="hamburger-menu-gap"></div>
+        {#if $authStore.user}
+          <BarIcon
+            onClick={() => {
+              closeHamburgerMenu();
+              reseter();
+              doLogout();
+            }}><LogOutIcon /></BarIcon
+          >
+        {:else}
+          <BarIcon
+            onClick={() => {
+              closeHamburgerMenu();
+              reseter();
+              openLoginOverlay();
+            }}><LogInIcon /></BarIcon
+          >
+        {/if}
+      {/if}
       {#if additionalHamburgerMenu.length > 0}
         <div class="hamburger-menu-separator"></div>
         {#each additionalHamburgerMenu as menu}
@@ -1105,7 +1145,7 @@
   {/if}
   {#if sideBarMode === 0}
     {#if $selectedCharID < 0 || $settingsOpen}
-      <span class="block text-base font-semibold text-textcolor mt-2">{language.recentChatsTitle}</span>
+      <span class="block text-xl font-semibold text-textcolor mt-2 tracking-[-0.01em]">{language.recentChatsTitle}</span>
       <div class="flex items-center justify-between gap-2 mt-2">
         <span class="text-sm text-textcolor2">{language.hideRecentChats}</span>
         <ShSwitch
@@ -1118,11 +1158,11 @@
       {:else if recentChars.length === 0}
         <span class="block text-sm text-textcolor2 mt-2">{language.noRecentChatsDesc}</span>
       {:else}
-        <div class="flex flex-col gap-1.5 mt-2">
+        <div class="flex flex-col mt-2 divide-y divide-[#293653]/50">
           {#each recentChars.slice(0, recentVisible) as rc (rc.index)}
             <button
               type="button"
-              class="group flex items-center gap-2.5 rounded-md border border-borderc/10 bg-darkbg p-2 text-left transition-colors hover:border-borderc/30 hover:bg-selected/50"
+              class="group flex items-center gap-3 bg-darkbg py-2.5 px-0 text-left transition-colors hover:bg-[#60a5fa]/[0.06]"
               onclick={() => changeChar(rc.index, {reseter})}
             >
               <div class="shrink-0">
@@ -1135,15 +1175,15 @@
                 />
               </div>
               <div class="flex-1 min-w-0">
-                <div class="text-sm font-semibold text-textcolor leading-tight truncate">{rc.name || "Unnamed"}</div>
-                <div class="text-xs text-textcolor2 leading-tight truncate">{makeAgoText(rc.lastInteraction)}</div>
+                <div class="text-sm font-semibold text-textcolor leading-tight truncate text-[15px]">{rc.name || "Unnamed"}</div>
+                <div class="text-[13px] text-textcolor2 leading-tight truncate">{makeAgoText(rc.lastInteraction)}</div>
               </div>
             </button>
           {/each}
           {#if recentVisible < recentChars.length}
             <button
               type="button"
-              class="w-full rounded-md border border-borderc/10 bg-darkbg p-2 text-center text-sm text-textcolor2 transition-colors hover:border-borderc/30 hover:bg-selected/50 hover:text-textcolor"
+              class="w-full bg-darkbg py-2.5 text-center text-sm text-textcolor2 transition-colors hover:bg-[#60a5fa]/[0.06] hover:text-textcolor"
               onclick={() => recentVisible += 10}
             >
               {language.loadMore}

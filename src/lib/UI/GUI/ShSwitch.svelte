@@ -65,8 +65,8 @@
         'aria-invalid:ring-draculared/20 aria-invalid:border-draculared ' +
         'shrink-0 rounded-full border border-transparent shadow-xs ' +
         'focus-visible:ring-3 aria-invalid:ring-3 ' +
-        'data-[size=default]:h-[18.4px] data-[size=default]:w-[32px] ' +
-        'data-[size=sm]:h-[14px] data-[size=sm]:w-[24px]',
+        'data-[size=default]:h-[26px] data-[size=default]:w-[44px] ' +
+        'data-[size=sm]:h-[22px] data-[size=sm]:w-[36px]',
         className
     )}
 >
@@ -76,7 +76,7 @@
             'pointer-events-none block ring-0 transition-transform ' +
             'rtl:data-[state=checked]:translate-x-[calc(-100%)] ' +
             'bg-white rounded-full ' +
-            'group-data-[size=default]/switch:size-4 group-data-[size=sm]/switch:size-3 ' +
+            'group-data-[size=default]/switch:size-5 group-data-[size=sm]/switch:size-4 ' +
             'group-data-[size=default]/switch:data-[state=checked]:translate-x-[calc(100%-2px)] ' +
             'group-data-[size=sm]/switch:data-[state=checked]:translate-x-[calc(100%-2px)] ' +
             'group-data-[size=default]/switch:data-[state=unchecked]:translate-x-0 ' +

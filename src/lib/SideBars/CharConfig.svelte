@@ -94,35 +94,38 @@
     const firstMsgTok = { t: null as ReturnType<typeof setTimeout> | null, seq: 0 }
     const localNoteTok = { t: null as ReturnType<typeof setTimeout> | null, seq: 0 }
     $effect.pre(() => {
-        tokenizeField(() => (DBState.db.characters[$selectedCharID] as character).desc ?? '', n => tokens.desc = n, descTok)
+    tokenizeField(() => DBState.db.characters[$selectedCharID]?.desc ?? '', n => tokens.desc = n, descTok)
     });
     $effect.pre(() => {
-        tokenizeField(() => DBState.db.characters[$selectedCharID].firstMessage ?? '', n => tokens.firstMsg = n, firstMsgTok)
+    tokenizeField(() => DBState.db.characters[$selectedCharID]?.firstMessage ?? '', n => tokens.firstMsg = n, firstMsgTok)
     });
     $effect.pre(() => {
-        const chara = DBState.db.characters[$selectedCharID]
-        tokenizeField(() => chara.chats[chara.chatPage].note ?? '', n => tokens.localNote = n, localNoteTok)
+    const chara = DBState.db.characters[$selectedCharID]
+    tokenizeField(() => chara?.chats?.[chara.chatPage]?.note ?? '', n => tokens.localNote = n, localNoteTok)
     });
 
 
     let assetFileExtensions:string[] = $state([])
     let assetFilePath:string[] = $state([])
-    let licensed = $state((DBState.db.characters[$selectedCharID].type === 'character') ? (DBState.db.characters[$selectedCharID] as character).license : '')
+    let licensed = $state((DBState.db.characters[$selectedCharID]?.type === 'character') ? (DBState.db.characters[$selectedCharID] as character).license : '')
 
     $effect.pre(() => {
-        emos = DBState.db.characters[$selectedCharID].emotionImages
+        const c = DBState.db.characters[$selectedCharID];
+        if (!c) return;
+        emos = c.emotionImages;
     });
 
 
     $effect.pre(() => {
-        if(DBState.db.characters[$selectedCharID].type ==='character' && DBState.db.useAdditionalAssetsPreview){
-            if((DBState.db.characters[$selectedCharID] as character).additionalAssets){
-                for(let i = 0; i < (DBState.db.characters[$selectedCharID] as character).additionalAssets.length; i++){
-                    if((DBState.db.characters[$selectedCharID] as character).additionalAssets[i].length > 2 && (DBState.db.characters[$selectedCharID] as character).additionalAssets[i][2]) {
-                        assetFileExtensions[i] = (DBState.db.characters[$selectedCharID] as character).additionalAssets[i][2]
+        const selectedCharacter = DBState.db.characters[$selectedCharID]
+        if(selectedCharacter?.type ==='character' && DBState.db.useAdditionalAssetsPreview){
+            if(selectedCharacter.additionalAssets){
+                for(let i = 0; i < selectedCharacter.additionalAssets.length; i++){
+                    if(selectedCharacter.additionalAssets[i].length > 2 && selectedCharacter.additionalAssets[i][2]) {
+                        assetFileExtensions[i] = selectedCharacter.additionalAssets[i][2]
                     } else
-                        assetFileExtensions[i] = (DBState.db.characters[$selectedCharID] as character).additionalAssets[i][1].split('.').pop()
-                    getFileSrc((DBState.db.characters[$selectedCharID] as character).additionalAssets[i][1]).then((filePath) => {
+                        assetFileExtensions[i] = selectedCharacter.additionalAssets[i][1].split('.').pop()
+                    getFileSrc(selectedCharacter.additionalAssets[i][1]).then((filePath) => {
                         assetFilePath[i] = filePath
                     })
                 }
@@ -131,11 +134,13 @@
     });
 
     $effect.pre(() => {
-        licensed = (DBState.db.characters[$selectedCharID].type === 'character') ? (DBState.db.characters[$selectedCharID] as character).license : ''
+        const selectedCharacter = DBState.db.characters[$selectedCharID]
+        licensed = selectedCharacter?.type === 'character' ? selectedCharacter.license : ''
     });
     $effect.pre(() => {
-        if (DBState.db.characters[$selectedCharID].ttsMode === 'novelai' && (DBState.db.characters[$selectedCharID] as character).naittsConfig === undefined) {
-            (DBState.db.characters[$selectedCharID] as character).naittsConfig = {
+        const selectedCharacter = DBState.db.characters[$selectedCharID]
+        if (selectedCharacter?.ttsMode === 'novelai' && selectedCharacter.naittsConfig === undefined) {
+            selectedCharacter.naittsConfig = {
                 customvoice: false,
                 voice: 'Aini',
                 version: 'v2'
@@ -143,8 +148,9 @@
         }
     });
     $effect.pre(() => {
-        if (DBState.db.characters[$selectedCharID].ttsMode === 'gptsovits' && (DBState.db.characters[$selectedCharID] as character).gptSoVitsConfig === undefined) {
-            (DBState.db.characters[$selectedCharID] as character).gptSoVitsConfig = {
+        const selectedCharacter = DBState.db.characters[$selectedCharID]
+        if (selectedCharacter?.ttsMode === 'gptsovits' && selectedCharacter.gptSoVitsConfig === undefined) {
+            selectedCharacter.gptSoVitsConfig = {
                 url: '',
                 use_auto_path: false,
                 ref_audio_path: '',
@@ -174,8 +180,9 @@
     }[] = $state([])
 
     $effect.pre(() => {
-        if (DBState.db.characters[$selectedCharID].ttsMode === 'openai' && (DBState.db.characters[$selectedCharID] as character).oaiTTSConfig === undefined) {
-            (DBState.db.characters[$selectedCharID] as character).oaiTTSConfig = {
+        const selectedCharacter = DBState.db.characters[$selectedCharID]
+        if (selectedCharacter?.ttsMode === 'openai' && selectedCharacter.oaiTTSConfig === undefined) {
+            selectedCharacter.oaiTTSConfig = {
                 enabled: false,
                 format: 'mp3',
             };
@@ -183,8 +190,9 @@
     });
 
     $effect.pre(() => {
-        if (DBState.db.characters[$selectedCharID].ttsMode === 'fishspeech' && (DBState.db.characters[$selectedCharID] as character).fishSpeechConfig === undefined) {
-            (DBState.db.characters[$selectedCharID] as character).fishSpeechConfig = {
+        const selectedCharacter = DBState.db.characters[$selectedCharID]
+        if (selectedCharacter?.ttsMode === 'fishspeech' && selectedCharacter.fishSpeechConfig === undefined) {
+            selectedCharacter.fishSpeechConfig = {
                 model: {
                     _id: '',
                     title: '',
@@ -197,8 +205,9 @@
     });
 
     $effect.pre(() => {
-        if (DBState.db.characters[$selectedCharID].ttsMode === 'doubao' && (DBState.db.characters[$selectedCharID] as character).doubaoTTSConfig === undefined) {
-            (DBState.db.characters[$selectedCharID] as character).doubaoTTSConfig = {
+        const selectedCharacter = DBState.db.characters[$selectedCharID]
+        if (selectedCharacter?.ttsMode === 'doubao' && selectedCharacter.doubaoTTSConfig === undefined) {
+            selectedCharacter.doubaoTTSConfig = {
                 endpoint: 'https://openspeech.bytedance.com/api/v1/tts',
                 appid: '',
                 token: '',
@@ -265,6 +274,7 @@
 
 </script>
 
+{#if DBState.db.characters[$selectedCharID]}
 <div class="char-config-shell">
     <div class="char-config-hero">
         <div class="hero-avatar">
@@ -487,7 +497,7 @@
                         <th class="font-medium w-1/2">{language.emotion}</th>
                         <th class="font-medium"></th>
                     </tr>
-                    {#if DBState.db.characters[$selectedCharID].emotionImages.length === 0}
+                    {#if (DBState.db.characters[$selectedCharID]?.emotionImages?.length ?? 0) === 0}
                         <tr>
                             <td colspan="3">{language.noImages}</td>
                         </tr>
@@ -1316,6 +1326,7 @@
 {/if}
 </div>
 </div>
+{/if}
 
 <style>
     .char-config-shell {

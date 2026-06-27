@@ -38,19 +38,19 @@
 {:else if submenu === 1}
     <SettingRenderer items={displaySizeSettingsItems} layout="row" />
 {:else if submenu === 2}
-    <h3 class="text-base font-bold mt-2 mb-1">{language.sectionHomeList}</h3>
+    <h3 class="font-mono text-[10px] uppercase tracking-[0.1em] text-textcolor2 pt-4 pb-1.5">{language.sectionHomeList}</h3>
     <SettingRenderer items={displayOtherHomeItems} layout="row" />
 
-    <h3 class="text-base font-bold mt-8 mb-1">{language.sectionChatView}</h3>
+    <h3 class="font-mono text-[10px] uppercase tracking-[0.1em] text-textcolor2 pt-4 pb-1.5">{language.sectionChatView}</h3>
     <SettingRenderer items={displayOtherChatItems} layout="row" />
 
-    <h3 class="text-base font-bold mt-8 mb-1">{language.sectionBubble}</h3>
+    <h3 class="font-mono text-[10px] uppercase tracking-[0.1em] text-textcolor2 pt-4 pb-1.5">{language.sectionBubble}</h3>
     <SettingRenderer items={displayOtherBubbleItems} layout="row" />
 
-    <h3 class="text-base font-bold mt-8 mb-1">{language.sectionQuotes}</h3>
+    <h3 class="font-mono text-[10px] uppercase tracking-[0.1em] text-textcolor2 pt-4 pb-1.5">{language.sectionQuotes}</h3>
     <SettingRenderer items={displayOtherQuoteItems} layout="row" />
 
-    <h3 class="text-base font-bold mt-8 mb-1">{language.sectionAdvanced}</h3>
+    <h3 class="font-mono text-[10px] uppercase tracking-[0.1em] text-textcolor2 pt-4 pb-1.5">{language.sectionAdvanced}</h3>
     <SettingRenderer items={displayOtherAdvancedItems} layout="row" />
 {/if}
 </SettingPage>

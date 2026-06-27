@@ -1228,4 +1228,9 @@ export const languageChineseExtra = {
         loggingIn: "登录中...",
         registering: "注册中...",
     },
+
+    // ── 底部导航 ─────────────────────────────────────────
+    chat: "聊天",
+    discover: "发现",
+    my: "我的",
 }

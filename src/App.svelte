@@ -26,6 +26,8 @@
     import MobileHeader from './lib/Mobile/MobileHeader.svelte';
     import MobileBody from './lib/Mobile/MobileBody.svelte';
     import MobileFooter from './lib/Mobile/MobileFooter.svelte';
+    import DesktopBottomNav from './lib/Mobile/DesktopBottomNav.svelte';
+    import DiscoverPage from './lib/UI/DiscoverPage.svelte';
     import { checkCharOrder } from './ts/globalApi.svelte';
     import { ArrowUpIcon, GlobeIcon, PlusIcon } from '@lucide/svelte';
     import { hypaV3ModalOpen, hypaV3ProgressStore } from "./ts/stores.svelte";
@@ -42,6 +44,7 @@
     import sendSound from './etc/send.mp3'
 
     let gridOpen = $state(false)
+    let desktopTab = $state(0) // 0=聊天 1=角色 2=发现 3=我的
     let aprilFools = $state(new Date().getMonth() === 3 && new Date().getDate() === 1)
     let aprilFoolsPage = $state(0)
     let keepingSessionAlive = $state(false)
@@ -105,7 +108,7 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<main class="flex bg-bg w-full h-full max-w-100vw text-textcolor" ondragover={(e) => {
+<main class="bg-bgcolor w-full h-full text-textcolor relative" ondragover={(e) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'link'
 }} ondrop={async (e) => {
@@ -234,7 +237,7 @@
             <RegisterPage onRegisterSuccess={handleRegisterSuccess} onSwitchToLogin={() => authPage = 'login'} />
         {/if}
     {:else if !$loadedStore}
-        <div class="w-full h-full flex justify-center items-center text-textcolor text-xl bg-gray-900 flex-col">
+        <div class="w-full h-full flex justify-center items-center text-textcolor text-xl bg-bgcolor flex-col">
             <div class="flex flex-row items-center">
                 <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-textcolor" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -254,22 +257,25 @@
             <MobileFooter />
         </div>
     {:else}
-        {#if gridOpen}
-            <GridChars endGrid={() => {gridOpen = false}} />
-        {:else}
-            {#if (!$DynamicGUI)}
-                <Sidebar openGrid={() => {gridOpen = true}} hidden={!$sideBarStore} />
-            {:else}
-                <div class="top-0 w-full h-full left-0 z-30 flex flex-row items-center" class:fixed={$sideBarStore} class:hidden={!$sideBarStore} >
-                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                    <Sidebar openGrid={() => {gridOpen = true}}  hidden={false} />
-
-
-
-                </div>
-            {/if}
-            <ChatScreen />
-        {/if}
+        <div class="desktop-layout">
+            <div class="desktop-main">
+                {#if gridOpen}
+                    <GridChars endGrid={() => {gridOpen = false}} />
+                {:else if desktopTab === 2}
+                    <DiscoverPage />
+                {:else}
+                    <ChatScreen />
+                {/if}
+            </div>
+            <DesktopBottomNav
+                activeTab={desktopTab}
+                onTabChange={(i) => {
+                    gridOpen = false;
+                    desktopTab = i;
+                    if (i === 1) { gridOpen = true; }
+                }}
+            />
+        </div>
     {/if}
     <AlertComp />
     {#if $showRealmInfoStore}
@@ -325,3 +331,19 @@
         {/if}
     {/if}
 </main>
+
+<style>
+    .desktop-layout {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+    }
+
+    .desktop-main {
+        flex: 1;
+        width: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+</style>

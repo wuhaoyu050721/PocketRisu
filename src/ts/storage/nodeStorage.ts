@@ -56,7 +56,7 @@ export class NodeStorage{
     private static sessionId: string =
         crypto?.randomUUID?.() ?? (Date.now().toString(36) + Math.random().toString(36).slice(2))
 
-    _lastDbEtag: string | null = null
+    _lastDbEtag: string | null = localStorage.getItem('risu-db-etag') ?? null
     authChecked = false
     private cachedJwt: { token: string; expiresAt: number } | null = null
     private static sessionInitialized = false
@@ -234,14 +234,23 @@ export class NodeStorage{
         const nextEtag = data.etag as string | undefined
         if (key === 'database/database.bin' && nextEtag) {
             this._lastDbEtag = nextEtag
+            localStorage.setItem('risu-db-etag', nextEtag)
         }
     }
     async getItem(key:string):Promise<Buffer> {
         const headers: Record<string, string> = {
             'file-path': Buffer.from(key, 'utf-8').toString('hex')
         }
+        // Send ETag for database.bin to enable 304 Not Modified
+        if (key === 'database/database.bin' && this._lastDbEtag) {
+            headers['if-none-match'] = this._lastDbEtag
+        }
 
         const da = await this.authFetch('/api/read', { method: "GET", headers })
+        // 304 Not Modified → data unchanged, return empty Buffer as signal
+        if (da.status === 304) {
+            return Buffer.alloc(0)
+        }
         if(da.status < 200 || da.status >= 300){
             throw "getItem Error"
         }
@@ -250,6 +259,7 @@ export class NodeStorage{
         const etag = da.headers.get('x-db-etag')
         if (etag) {
             this._lastDbEtag = etag
+            localStorage.setItem('risu-db-etag', etag)
         }
 
         const data = Buffer.from(await da.arrayBuffer())
@@ -345,6 +355,8 @@ export class NodeStorage{
     /** Set cached ETag for database.bin */
     setDbEtag(etag: string | null) {
         this._lastDbEtag = etag
+        if (etag) localStorage.setItem('risu-db-etag', etag)
+        else localStorage.removeItem('risu-db-etag')
     }
 
     async patchItem(key: string, patchData: { patch: any[], expectedHash: string }): Promise<PatchItemResult> {
@@ -362,6 +374,7 @@ export class NodeStorage{
             const currentEtag = data.currentEtag as string | undefined
             if (key === 'database/database.bin' && currentEtag) {
                 this._lastDbEtag = currentEtag
+                localStorage.setItem('risu-db-etag', currentEtag)
             }
             // Server signals chat-guard rejection via explicit fields. The
             // error string fallback is kept for forward-compat with deployed
@@ -381,6 +394,7 @@ export class NodeStorage{
         const nextEtag = data.etag as string | undefined
         if (key === 'database/database.bin' && nextEtag) {
             this._lastDbEtag = nextEtag
+            localStorage.setItem('risu-db-etag', nextEtag)
         }
         const persistWarning = data.persistWarning as PersistWarning | undefined
         return { success: true, etag: nextEtag, persistWarning }

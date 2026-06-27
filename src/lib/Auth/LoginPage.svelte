@@ -49,107 +49,78 @@
     }
 </script>
 
-<div class="auth-screen fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 px-4 py-6 sm:px-6">
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.22),transparent_32%),radial-gradient(circle_at_82%_78%,rgba(22,163,74,0.16),transparent_28%)]"></div>
+<div class="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto bg-bgcolor px-4 py-8 sm:px-6">
+    <!-- Background ambient glow -->
+    <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_80%_at_50%_20%,color-mix(in_oklch,var(--risu-theme-primary)_8%,var(--risu-theme-bgcolor))_0%,var(--risu-theme-bgcolor)_55%)]"></div>
 
-    <div class="relative grid w-full max-w-5xl overflow-hidden rounded-2xl border border-white/12 bg-darkbg/85 shadow-2xl backdrop-blur-xl md:grid-cols-[1.05fr_0.95fr]">
-        <section class="auth-visual relative hidden min-h-[34rem] flex-col justify-between p-9 text-white md:flex">
-            <div class="absolute inset-0 bg-gradient-to-br from-black/20 via-black/50 to-black/80"></div>
-            <div class="relative">
-                <div class="mb-5 flex size-12 items-center justify-center rounded-xl border border-white/20 bg-white/12 shadow-lg backdrop-blur">
-                    <Sparkles size={24} />
-                </div>
-                <p class="text-sm font-medium uppercase tracking-[0.18em] text-white/65">小酒馆</p>
-                <h1 class="mt-3 max-w-md text-4xl font-bold leading-tight text-white">回到你的角色世界</h1>
-                <p class="mt-4 max-w-sm text-base leading-7 text-white/72">
-                    继续创作、整理预设，并把每一次对话稳定保存下来。
-                </p>
+    <div class="relative flex w-full max-w-sm flex-col items-center gap-6">
+        <!-- Logo + Hero -->
+        <div class="text-center">
+            <div class="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary">
+                <Sparkles size={28} class="text-textcolor" />
             </div>
-            <div class="relative grid grid-cols-3 gap-3 text-sm text-white/78">
-                <div class="rounded-lg border border-white/14 bg-white/10 p-3 backdrop-blur">
-                    <div class="text-lg font-semibold text-white">快速</div>
-                    <div class="mt-1">进入会话</div>
-                </div>
-                <div class="rounded-lg border border-white/14 bg-white/10 p-3 backdrop-blur">
-                    <div class="text-lg font-semibold text-white">安全</div>
-                    <div class="mt-1">本地保存</div>
-                </div>
-                <div class="rounded-lg border border-white/14 bg-white/10 p-3 backdrop-blur">
-                    <div class="text-lg font-semibold text-white">专注</div>
-                    <div class="mt-1">沉浸体验</div>
-                </div>
+            <h1 class="text-[26px] font-bold leading-tight text-textcolor tracking-[-0.02em]">欢迎回来</h1>
+            <p class="mt-2 text-sm text-textcolor2">登录以继续与你的 AI 角色对话</p>
+        </div>
+
+        <!-- Error message -->
+        {#if error}
+            <div class="w-full rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-300">
+                {error}
             </div>
-        </section>
+        {/if}
 
-        <section class="relative flex min-h-[34rem] items-center bg-darkbg/92 px-5 py-8 sm:px-8">
-            <div class="mx-auto w-full max-w-md">
-                <div class="mb-8 text-center md:text-left">
-                    <div class="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl border border-primary/30 bg-primary/15 text-primary md:mx-0">
-                        <UserRound size={23} />
-                    </div>
-                    <p class="text-sm font-medium text-primary">{language.auth.login}</p>
-                    <h2 class="mt-2 text-3xl font-bold text-textcolor">欢迎回来</h2>
-                    <p class="mt-2 text-sm leading-6 text-textcolor2">使用账号密码进入你的 小酒馆 空间。</p>
-                </div>
-
-                {#if error}
-                    <div class="mb-5 rounded-lg border border-red-500/40 bg-red-500/12 px-4 py-3 text-sm leading-6 text-red-300">
-                        {error}
-                    </div>
-                {/if}
-
-                <form class="flex flex-col gap-4" onsubmit={handleSubmit}>
-                    <label class="block">
-                        <span class="mb-2 flex items-center gap-2 text-sm font-medium text-textcolor2">
-                            <UserRound size={16} />
-                            {language.auth.username}
-                        </span>
-                        <ShInput bind:value={username} placeholder={language.auth.username} className="h-12 min-h-12 bg-black/18 px-3" autocomplete="username" />
-                    </label>
-
-                    <label class="block">
-                        <span class="mb-2 flex items-center gap-2 text-sm font-medium text-textcolor2">
-                            <LockKeyhole size={16} />
-                            {language.auth.password}
-                        </span>
-                        <ShInput
-                            type="password"
-                            bind:value={password}
-                            placeholder={language.auth.password}
-                            className="h-12 min-h-12 bg-black/18 px-3"
-                            autocomplete="current-password"
-                        />
-                    </label>
-
-                    <ShButton type="submit" variant="primary" size="lg" className="mt-2 w-full" disabled={loading}>
-                        {loading ? language.auth.loggingIn : language.auth.loginButton}
-                    </ShButton>
-                </form>
-
-                <div class="mt-6 rounded-lg border border-darkborderc/70 bg-black/12 px-4 py-3 text-center text-sm text-textcolor2">
-                    <button class="font-medium text-primary hover:underline" onclick={onSwitchToRegister}>
-                        {language.auth.noAccount}
-                    </button>
-                </div>
+        <!-- Login form -->
+        <form class="flex w-full flex-col gap-4" onsubmit={handleSubmit}>
+            <div>
+                <label class="mb-1.5 block font-mono text-xs uppercase tracking-wider text-textcolor2" for="login-username">
+                    {language.auth.username}
+                </label>
+                <ShInput
+                    bind:value={username}
+                    placeholder={language.auth.username}
+                    className="min-h-11 rounded-xl bg-darkbg px-3.5 text-textcolor placeholder:text-textcolor2"
+                    autocomplete="username"
+                />
             </div>
-        </section>
+
+            <div>
+                <label class="mb-1.5 block font-mono text-xs uppercase tracking-wider text-textcolor2" for="login-password">
+                    {language.auth.password}
+                </label>
+                <ShInput
+                    type="password"
+                    bind:value={password}
+                    placeholder={language.auth.password}
+                    className="min-h-11 rounded-xl bg-darkbg px-3.5 text-textcolor placeholder:text-textcolor2"
+                    autocomplete="current-password"
+                />
+            </div>
+
+            <ShButton type="submit" variant="primary" size="lg" className="mt-2 w-full rounded-[14px]" disabled={loading}>
+                {loading ? language.auth.loggingIn : language.auth.loginButton}
+            </ShButton>
+        </form>
+
+        <!-- Divider -->
+        <div class="flex w-full items-center gap-3">
+            <div class="flex-1 border-t border-borderc"></div>
+            <span class="text-xs text-textcolor2">或者</span>
+            <div class="flex-1 border-t border-borderc"></div>
+        </div>
+
+        <!-- Register link -->
+        <button
+            class="w-full rounded-[14px] py-3.5 text-sm font-medium text-primary transition-colors hover:bg-primary/8"
+            onclick={onSwitchToRegister}
+        >
+            {language.auth.noAccount}
+        </button>
+
+        <!-- Footer meta -->
+        <p class="pb-2 text-center font-mono text-xs text-textcolor2">多用户模式 · 数据完全隔离</p>
     </div>
 </div>
 
 <style>
-    .auth-screen::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background-image: linear-gradient(rgba(8, 10, 16, 0.42), rgba(8, 10, 16, 0.78)), url('/bg.webp');
-        background-position: center;
-        background-size: cover;
-        filter: saturate(1.08);
-    }
-
-    .auth-visual {
-        background-image: url('/welcome/welcomebg.png');
-        background-position: center;
-        background-size: cover;
-    }
 </style>

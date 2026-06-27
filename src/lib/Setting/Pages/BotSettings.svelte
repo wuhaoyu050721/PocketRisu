@@ -438,7 +438,7 @@
             }} />
         </div>
         {#if DBState.db.localStopStrings}
-            <div class="flex flex-col p-2 rounded-sm border border-selected mt-2 gap-1">
+            <div class="flex flex-col p-2 rounded-lg border border-darkborderc bg-darkbg/20 mt-2 gap-1">
                 <div class="p-2">
                     <button class="font-medium flex justify-center items-center h-full cursor-pointer hover:text-primary w-full" onclick={() => {
                         let localStopStrings = DBState.db.localStopStrings
@@ -462,16 +462,16 @@
                 {/each}
             </div>
         {/if}
-        <div class="flex flex-col p-3 rounded-md border-selected border mt-4">
+        <div class="flex flex-col p-3 rounded-lg border-darkborderc border mt-4">
             <ChatFormatSettings />
         </div>
         <Check bind:check={DBState.db.ooba.formating.useName} name={language.useNamePrefix}/>
     
     {:else if modelInfo.format === LLMFormat.NovelAI}
-        <div class="text-textcolor2 text-xs mt-4 mb-2 p-2 rounded-md border border-darkborderc">
+        <div class="text-textcolor2 text-[11px] mt-4 mb-2 p-2.5 rounded-lg border border-darkborderc bg-darkbg/30">
             These parameters follow NovelAI's own definitions. See the official NovelAI documentation for details.
         </div>
-        <div class="flex flex-col p-3 bg-darkbg mt-4">
+        <div class="flex flex-col p-3 bg-darkbg/40 rounded-lg border border-darkborderc mt-4">
             <span class="text-textcolor">Starter</span>
             <TextInput className="mt-2" bind:value={DBState.db.NAIsettings.starter} placeholder={'⁂'} />
             <span class="text-textcolor">Seperator</span>
@@ -505,7 +505,7 @@
         <SliderInput className="mt-2" min={1} max={3} step={0.01} marginBottom fixed={2} bind:value={DBState.db.NAIsettings.cfg_scale}/>
 
     {:else if modelInfo.format === LLMFormat.NovelList}
-        <div class="text-textcolor2 text-xs mt-4 mb-2 p-2 rounded-md border border-darkborderc">
+        <div class="text-textcolor2 text-[11px] mt-4 mb-2 p-2.5 rounded-lg border border-darkborderc bg-darkbg/30">
             These parameters follow NovelList's own definitions. See the official NovelList documentation for details.
         </div>
         <span class="text-textcolor">Top P</span>

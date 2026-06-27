@@ -2,6 +2,8 @@
     import { MobileGUIStack, MobileSearch, MobileSideBar, selectedCharID } from "src/ts/stores.svelte";
     import Settings from "../Setting/Settings.svelte";
     import MainMenu from "../UI/MainMenu.svelte";
+    import HomePage from "../UI/HomePage.svelte";
+    import DiscoverPage from "../UI/DiscoverPage.svelte";
     import MobileCharacters from "./MobileCharacters.svelte";
     import ChatScreen from "../ChatScreens/ChatScreen.svelte";
     import CharConfig from "../SideBars/CharConfig.svelte";
@@ -12,6 +14,10 @@
     import { isLite } from "src/ts/lite";
     
     import { DBState } from 'src/ts/stores.svelte';
+
+    $effect(() => {
+        console.log('[MobileBody] stack=', $MobileGUIStack, 'selectedCharID=', $selectedCharID, 'mobileSideBar=', $MobileSideBar);
+    });
 </script>
 
 {#if $MobileSideBar > 0 && !$isLite}
@@ -47,9 +53,11 @@
     {:else if $selectedCharID !== -1}
         <ChatScreen />
     {:else if $MobileGUIStack === 0}
-        <MainMenu />
+        <HomePage />
     {:else if $MobileGUIStack === 1}
         <MobileCharacters search={$MobileSearch} />
+    {:else if $MobileGUIStack === 3}
+        <DiscoverPage />
     {:else if $MobileGUIStack === 2}
         <Settings />
     {/if}

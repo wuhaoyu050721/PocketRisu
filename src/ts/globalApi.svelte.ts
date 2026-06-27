@@ -3,6 +3,7 @@ import { v4 as uuidv4, v4 } from 'uuid';
 import { tick } from "svelte";
 import { get } from "svelte/store";
 import streamSaver from 'streamsaver';
+streamSaver.mitm = '/mitm.html';
 import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, nodeOnlyVer, getCurrentCharacter, loadTogglesFromChat } from "./storage/database.svelte";
 import { checkRisuUpdate } from "./update";
 import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore, loadingOverlayStore, chatDeselected } from "./stores.svelte";
@@ -69,11 +70,34 @@ export async function downloadFile(name: string, dat: Uint8Array | ArrayBuffer |
     }, 10000)
 }
 
+const ASSET_CACHE_PREFIX = 'risu-asset:';
 let fileCache: {
     origin: string[], res: (Uint8Array | 'loading' | 'done')[]
-} = {
-    origin: [],
-    res: []
+} = (() => {
+    // Restore cache from individual sessionStorage keys
+    const origin: string[] = [];
+    const res: (Uint8Array | 'loading' | 'done')[] = [];
+    try {
+        for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i);
+            if (key?.startsWith(ASSET_CACHE_PREFIX)) {
+                const loc = key.slice(ASSET_CACHE_PREFIX.length);
+                const val = sessionStorage.getItem(key);
+                if (val) {
+                    origin.push(loc);
+                    res.push(new Uint8Array(JSON.parse(val)));
+                }
+            }
+        }
+    } catch {}
+    if (origin.length) console.log('[AssetCache] restored', origin.length, 'assets');
+    return { origin, res };
+})();
+
+function persistFileCache(key: string, data: Uint8Array) {
+    try {
+        sessionStorage.setItem(ASSET_CACHE_PREFIX + key, JSON.stringify(Array.from(data)));
+    } catch {}
 }
 
 let pathCache: { [key: string]: string } = {}
@@ -163,6 +187,7 @@ export async function getFileSrc(loc: string) {
                 fileCache.res.push('loading')
                 const f: Uint8Array = await forageStorage.getItem(loc) as unknown as Uint8Array
                 fileCache.res[ind] = f
+                persistFileCache(loc, f);
                 return `data:image/png;base64,${Buffer.from(f).toString('base64')}`
             }
             else {
@@ -1732,50 +1757,105 @@ function formDataToString(formData: FormData): string {
  */
 export class LocalWriter {
     writer: WritableStreamDefaultWriter
+    /** Fallback buffer when StreamSaver (Service Worker) is unavailable, e.g. HBuilder X WebView */
+    private fallbackBuffer: AppendableBuffer | null = null
+    private fallbackName: string = ''
+    private fallbackExt: string = ''
 
     /**
      * Initializes the writer.
-     * 
+     *
      * @param {string} [name='Binary'] - The name of the file.
      * @param {string[]} [ext=['bin']] - The file extensions.
      * @returns {Promise<boolean>} - A promise that resolves to a boolean indicating success.
      */
     async init(name = 'Binary', ext = ['bin']): Promise<boolean> {
-        const writableStream = streamSaver.createWriteStream(name + '.' + ext[0])
-        this.writer = writableStream.getWriter()
-        return true
+        this.fallbackName = name
+        this.fallbackExt = ext[0]
+
+        // Service Workers require a secure context (HTTPS or localhost).
+        // HBuilder X WebView and similar wrappers use file:// or custom
+        // protocols where SW is unavailable — even if a WritableStream
+        // polyfill masks the failure in createWriteStream(), close() will
+        // fail silently (or throw an unhelpful error). Detect this early
+        // and use the blob-download fallback immediately.
+        const canUseSW = (() => {
+            if (typeof navigator === 'undefined') return false
+            if (!('serviceWorker' in navigator)) return false
+            const proto = (location.protocol || '').toLowerCase()
+            if (proto === 'https:' || proto === 'http:' && location.hostname === 'localhost') return true
+            // file:, hbuilder:, custom schemes → no SW
+            return false
+        })()
+
+        if (!canUseSW) {
+            console.warn('[LocalWriter] Service Worker not available (protocol: ' + location.protocol + '), using blob download fallback')
+            this.fallbackBuffer = new AppendableBuffer()
+            return true
+        }
+
+        try {
+            const writableStream = streamSaver.createWriteStream(name + '.' + ext[0])
+            this.writer = writableStream.getWriter()
+            return true
+        } catch (e) {
+            // StreamSaver failed despite SW being theoretically available
+            // (e.g. SW registration race). Fall back to blob download.
+            console.warn('[LocalWriter] StreamSaver failed, using blob download fallback:', e)
+            this.fallbackBuffer = new AppendableBuffer()
+            return true
+        }
     }
 
     /**
      * Writes backup data to the file.
-     * 
+     *
      * @param {string} name - The name of the backup.
      * @param {Uint8Array} data - The data to write.
      */
     async writeBackup(name: string, data: Uint8Array): Promise<void> {
-        const encodedName = new TextEncoder().encode(getBasename(name))
-        const nameLength = new Uint32Array([encodedName.byteLength])
-        await this.writer.write(new Uint8Array(nameLength.buffer))
-        await this.writer.write(encodedName)
-        const dataLength = new Uint32Array([data.byteLength])
-        await this.writer.write(new Uint8Array(dataLength.buffer))
-        await this.writer.write(data)
+        if (this.fallbackBuffer) {
+            const encodedName = new TextEncoder().encode(getBasename(name))
+            const nameLength = new Uint32Array([encodedName.byteLength])
+            this.fallbackBuffer.append(new Uint8Array(nameLength.buffer))
+            this.fallbackBuffer.append(encodedName)
+            const dataLength = new Uint32Array([data.byteLength])
+            this.fallbackBuffer.append(new Uint8Array(dataLength.buffer))
+            this.fallbackBuffer.append(data)
+        } else {
+            const encodedName = new TextEncoder().encode(getBasename(name))
+            const nameLength = new Uint32Array([encodedName.byteLength])
+            await this.writer.write(new Uint8Array(nameLength.buffer))
+            await this.writer.write(encodedName)
+            const dataLength = new Uint32Array([data.byteLength])
+            await this.writer.write(new Uint8Array(dataLength.buffer))
+            await this.writer.write(data)
+        }
     }
 
     /**
      * Writes data to the file.
-     * 
+     *
      * @param {Uint8Array} data - The data to write.
      */
     async write(data: Uint8Array): Promise<void> {
-        await this.writer.write(data)
+        if (this.fallbackBuffer) {
+            this.fallbackBuffer.append(data)
+        } else {
+            await this.writer.write(data)
+        }
     }
 
     /**
-     * Closes the writer.
+     * Closes the writer. In fallback mode, triggers a blob download.
      */
     async close(): Promise<void> {
-        await this.writer.close()
+        if (this.fallbackBuffer) {
+            const fullName = this.fallbackName + '.' + this.fallbackExt
+            downloadFile(fullName, this.fallbackBuffer.buffer)
+        } else {
+            await this.writer.close()
+        }
     }
 }
 

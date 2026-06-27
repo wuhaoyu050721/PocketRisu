@@ -1,133 +1,129 @@
-// @ts-nocheck
+/* global self ReadableStream Response */
 
-self.addEventListener('fetch', (event) => {
-    const url = new URL(event.request.url)
-    const path = url.pathname.split('/')
-    if(path[1] === 'sw'){
-        try {
-            switch (path[2]){
-                case "check":{
-                    let targetUrl = url
-                    const headers = event.request.headers
-                    const headerUrl = headers.get('x-register-url')
-                    if(headerUrl){
-                        targetUrl.pathname = decodeURIComponent(headerUrl)
-                    }
-                    event.respondWith(checkCache(targetUrl))
-                    break
-                }
-                case "img": {
-                    event.respondWith(getSource(url))
-                    break
-                }
-                case "register": {
-                    let targetUrl = url
-                    const headers = event.request.headers
-                    const headerUrl = headers.get('x-register-url')
-                    if(headerUrl){
-                        targetUrl.pathname = decodeURIComponent(headerUrl)
-                    }
-                    const noContentType = headers.get('x-no-content-type') === 'true'
-                    event.respondWith(
-                        registerCache(targetUrl, event.request.arrayBuffer(), noContentType)
-                    )
-                    break
-                }
-                case "init":{
-                    event.respondWith(new Response("v2"))
-                    break
-                }
-                case 'share':{
-                    event.respondWith((async () => {
-                        const formData = await event.request.formData();
-                        /**
-                         * @type {File}
-                        */
-                        const character = formData.get('character')
-                        const preset = formData.get('preset')
-                        const module = formData.get('module')
-                        if(character){
-                            const buf = await character.arrayBuffer()
-                            await registerCache(`/sw/share/character`, buf, true)
-                            return Response.redirect("/#share_character", 303)
-                        }
-                        if(preset){
-                            const buf = await preset.arrayBuffer()
-                            await registerCache(`/sw/share/preset`, buf, true)
-                            return Response.redirect("/#share_preset", 303)
-                        }
-                        if(module){
-                            const buf = await module.arrayBuffer()
-                            await registerCache(`/sw/share/module`, buf, true)
-                            return Response.redirect("/#share_module", 303)
-                        }
-                        return Response.redirect("/", 303)
-
-                    })())
-                    break
-                }
-                default: {
-                    event.respondWith(new Response(
-                        path[2]
-                    ))
-                }
-            }
-        } catch (error) {
-            event.respondWith(new Response(`${error}`))
-        }
-    }
-    if(path[1] === 'tf'){{
-        event.respondWith(new Response("Cannot find resource from cache", {
-            status: 404
-        }))
-    }}
+self.addEventListener('install', () => {
+  self.skipWaiting()
 })
 
+self.addEventListener('activate', event => {
+  event.waitUntil(self.clients.claim())
+})
 
-async function checkCache(url){
-    const cache = await caches.open('risuCache')
+const map = new Map()
 
-    if(url.pathname.startsWith("/sw/check")) {
-        url.pathname = "/sw/img" + url.pathname.slice(9);
-        return new Response(JSON.stringify({
-            "able": !!(await cache.match(url))
-        }))
+// This should be called once per download
+// Each event has a dataChannel that the data will be piped through
+self.onmessage = event => {
+  // We send a heartbeat every x second to keep the
+  // service worker alive if a transferable stream is not sent
+  if (event.data === 'ping') {
+    return
+  }
+
+  const data = event.data
+  const downloadUrl = data.url || self.registration.scope + Math.random() + '/' + (typeof data === 'string' ? data : data.filename)
+  const port = event.ports[0]
+  const metadata = new Array(3) // [stream, data, port]
+
+  metadata[1] = data
+  metadata[2] = port
+
+  // Note to self:
+  // old streamsaver v1.2.0 might still use `readableStream`...
+  // but v2.0.0 will always transfer the stream through MessageChannel #94
+  if (event.data.readableStream) {
+    metadata[0] = event.data.readableStream
+  } else if (event.data.transferringReadable) {
+    port.onmessage = evt => {
+      port.onmessage = null
+      metadata[0] = evt.data.readableStream
     }
+  } else {
+    metadata[0] = createStream(port)
+  }
 
-    return new Response(JSON.stringify({
-        "able": !!(await cache.match(url))
-    }))
+  map.set(downloadUrl, metadata)
+  port.postMessage({ download: downloadUrl })
 }
 
-async function getSource(url){
-    const cache = await caches.open('risuCache')
-    return await cache.match(url)
+function createStream (port) {
+  // ReadableStream is only supported by chrome 52
+  return new ReadableStream({
+    start (controller) {
+      // When we receive data on the messageChannel, we write
+      port.onmessage = ({ data }) => {
+        if (data === 'end') {
+          return controller.close()
+        }
+
+        if (data === 'abort') {
+          controller.error('Aborted the download')
+          return
+        }
+
+        controller.enqueue(data)
+      }
+    },
+    cancel (reason) {
+      console.log('user aborted', reason)
+      port.postMessage({ abort: true })
+    }
+  })
 }
 
-async function check(){
+self.onfetch = event => {
+  const url = event.request.url
 
-}
+  // this only works for Firefox
+  if (url.endsWith('/ping')) {
+    return event.respondWith(new Response('pong'))
+  }
 
-async function registerCache(urlr, buffer, noContentType = false){
-    const cache = await caches.open('risuCache')
-    const url = new URL(urlr)
-    if(!noContentType){
-        let path = url.pathname.split('/')
-        path[2] = 'img'
-        url.pathname = path.join('/')
-    }
-    const buf = new Uint8Array(await buffer)
-    let headers = {
-        "cache-control": "max-age=604800",
-        "content-type": "image/png"
-    }
-    if(noContentType){
-        delete headers["content-type"]
-    }
-    await cache.put(url, new Response(buf, {
-        headers
-    }))
-    return new Response(JSON.stringify({
-        "done": true
-    }))
+  const hijacke = map.get(url)
+
+  if (!hijacke) return null
+
+  const [ stream, data, port ] = hijacke
+
+  map.delete(url)
+
+  // Not comfortable letting any user control all headers
+  // so we only copy over the length & disposition
+  const responseHeaders = new Headers({
+    'Content-Type': 'application/octet-stream; charset=utf-8',
+
+    // To be on the safe side, The link can be opened in a iframe.
+    // but octet-stream should stop it.
+    'Content-Security-Policy': "default-src 'none'",
+    'X-Content-Security-Policy': "default-src 'none'",
+    'X-WebKit-CSP': "default-src 'none'",
+    'X-XSS-Protection': '1; mode=block'
+  })
+
+  let headers = new Headers(data.headers || {})
+
+  if (headers.has('Content-Length')) {
+    responseHeaders.set('Content-Length', headers.get('Content-Length'))
+  }
+
+  if (headers.has('Content-Disposition')) {
+    responseHeaders.set('Content-Disposition', headers.get('Content-Disposition'))
+  }
+
+  // data, data.filename and size should not be used anymore
+  if (data.size) {
+    console.warn('Depricated')
+    responseHeaders.set('Content-Length', data.size)
+  }
+
+  let fileName = typeof data === 'string' ? data : data.filename
+  if (fileName) {
+    console.warn('Depricated')
+    // Make filename RFC5987 compatible
+    fileName = encodeURIComponent(fileName).replace(/['()]/g, escape).replace(/\*/g, '%2A')
+    responseHeaders.set('Content-Disposition', "attachment; filename*=UTF-8''" + fileName)
+  }
+
+  event.respondWith(new Response(stream, { headers: responseHeaders }))
+
+  port.postMessage({ debug: 'Download started' })
 }

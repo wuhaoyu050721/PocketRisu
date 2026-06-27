@@ -374,7 +374,7 @@
     {:else if $SystemSubmenuIndex === 1}
     <SystemBackup />
     {:else if $SystemSubmenuIndex === 2}
-    <p class="text-textcolor2 text-sm mb-4">{language.systemLogsDesc}</p>
+    <p class="font-mono text-[11px] uppercase tracking-[0.08em] text-textcolor2 mb-4">{language.systemLogsDesc}</p>
 
     <!-- Toolbar -->
     <div class="flex flex-col gap-3 mb-4">
@@ -396,7 +396,7 @@
                 {/if}
             </div>
             <Collapsible.Content>
-                <div class="flex flex-col gap-2 pb-3 border-b border-darkborderc/50">
+                <div class="flex flex-col gap-2 pb-3 border-b border-darkborderc">
                     <!-- Level -->
                     <div class="flex items-start gap-2">
                         <span class="text-textcolor2 text-xs shrink-0 w-16 pt-1">{language.systemLogsFilterLevel}</span>
@@ -454,7 +454,7 @@
                         </div>
                     {/if}
                     <!-- Mode: explicit logs only (pressed = hide auto-captured) -->
-                    <div class="flex items-center gap-2 flex-wrap pt-2 mt-1 border-t border-darkborderc/30">
+                    <div class="flex items-center gap-2 flex-wrap pt-2 mt-1 border-t border-darkborderc">
                         <ShToggle size="xs" pressed={explicitOnly} onPressedChange={v => explicitOnly = v}>
                             <TerminalIcon /> {language.systemLogsExplicitOnly}
                         </ShToggle>
@@ -497,7 +497,7 @@
 
     <!-- List -->
     {#if !loading && filtered.length === 0}
-        <div class="flex flex-col items-center justify-center text-center py-16 border border-darkborderc rounded-md bg-darkbg/30">
+        <div class="flex flex-col items-center justify-center text-center py-16 border border-darkborderc rounded-lg bg-darkbg/40">
             <ScrollTextIcon size={48} class="text-textcolor2 mb-3 opacity-50" />
             <div class="text-textcolor font-medium mb-1">{language.systemLogsEmpty}</div>
             <div class="text-textcolor2 text-sm">
@@ -506,13 +506,13 @@
         </div>
     {:else}
         <Tooltip.Provider delayDuration={300}>
-            <div class="flex flex-col gap-1 border border-darkborderc rounded-md bg-darkbg/30 overflow-hidden">
+            <div class="flex flex-col gap-1 border border-darkborderc rounded-lg bg-darkbg/30 overflow-hidden">
                 {#each filtered as entry (entry.id)}
                     <Collapsible.Root
                         open={expanded[entry.id] === true}
                         onOpenChange={(v) => { expanded = { ...expanded, [entry.id]: v } }}
                     >
-                        <Collapsible.Trigger class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-selected/30 focus-visible:outline-none focus-visible:bg-selected/30 border-b border-darkborderc/50 group">
+                        <Collapsible.Trigger class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-selected/30 focus-visible:outline-none focus-visible:bg-selected/30 border-b border-darkborderc group">
                             <!-- Level icon + badge -->
                             <ShBadge variant={levelVariant(entry.level)} className="shrink-0">
                                 {#if entry.level === 'error'}
