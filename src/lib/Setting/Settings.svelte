@@ -22,7 +22,7 @@
     import InlayImageGallery from "./Pages/InlayImageGallery.svelte";
     import RemoteAccessSettings from "./Pages/RemoteAccessSettings.svelte";
     import { isLite } from "src/ts/lite";
-    import { additionalSettingsMenu, MobileGUI, SettingsMenuIndex, settingsOpen, desktopTabStore } from "src/ts/stores.svelte";
+    import { additionalSettingsMenu, MobileGUI, SettingsMenuIndex, settingsOpen, desktopTabStore, authStore } from "src/ts/stores.svelte";
     import { DBState } from "src/ts/stores.svelte";
     import PluginDefinedIcon from "../Others/PluginDefinedIcon.svelte";
     import { CircleXIcon } from "@lucide/svelte";
@@ -52,7 +52,7 @@
             <div class="user-card">
                 <div class="user-avatar"></div>
                 <div class="user-info">
-                    <div class="user-name">{DBState.db?.account?.username ?? 'admin'}</div>
+                    <div class="user-name">{$authStore.user?.username ?? 'admin'}</div>
                     <div class="user-role">管理员 · 多用户模式</div>
                 </div>
             </div>

@@ -1482,6 +1482,7 @@ import { isMobile } from 'src/ts/platform'
         align-items: center;
         justify-content: space-between;
         padding: 14px 18px;
+        padding-top: calc(14px + var(--sat));
         border-bottom: 1px solid var(--risu-theme-borderc);
         font-size: 16px;
         font-weight: 600;

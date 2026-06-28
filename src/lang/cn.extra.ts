@@ -868,7 +868,10 @@ export const languageChineseExtra = {
         reportPrompt: "请输入举报内容，将发送给管理员（版权问题请使用邮件举报）",
         removeConfirm: "确定要将此角色从 Realm 移除吗？",
         download: "下载",
+        importHint: "导入后可在对话列表中找到此角色",
     },
+    rating: "评分",
+    reviews: "评价",
 
     // ── 下载/导入流程 ──────────────────────────────────────
     downloadProcess: {

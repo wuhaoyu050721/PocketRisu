@@ -44,7 +44,7 @@ export function resolveChatModelBinding(
     mode: ModelModeExtended,
 ): ResolvedBinding {
     const db = getDatabase()
-    const lock: 'preset' = 'preset'
+    const lock = db.nodeOnlyModelModeLock ?? 'none'
 
     // Effective regime. A global lock forces every chat into one regime; 'none'
     // defers to the chat's OWN stored choice only. The new-chat default

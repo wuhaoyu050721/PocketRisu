@@ -441,7 +441,7 @@ async function requestCharacterTranslation(formated: OpenAIChat[], abortSignal?:
             "model",
             abortSignal,
         );
-        if (result.type === "success" || (result.type === "fail" && result.noRetry)) {
+        if (result.type !== "fail" || result.noRetry) {
             return result;
         }
         // Fall through to configured DeepSeek

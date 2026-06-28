@@ -1605,6 +1605,9 @@ export type hubType = {
     name:string
     desc: string
     download: string,
+    version?: string
+    rating?: number | string
+    reviews?: number | string
     id: string,
     img: string
     tags: string[],

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { DynamicGUI, settingsOpen, sideBarStore, openPresetList, openModelPresetList, openModelProfileBrowser, openPersonaList, personaSelectCallback, openHypaV3PresetList, openThemePresetList, MobileGUI, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, popUpEditorStore, authStore, desktopTabStore } from './ts/stores.svelte';
+    import { DynamicGUI, settingsOpen, sideBarStore, openPresetList, openModelPresetList, openModelProfileBrowser, openPersonaList, personaSelectCallback, openHypaV3PresetList, openThemePresetList, MobileGUI, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, popUpEditorStore, authStore, desktopTabStore, selectedCharID } from './ts/stores.svelte';
     import LoginPage from './lib/Auth/LoginPage.svelte';
     import RegisterPage from './lib/Auth/RegisterPage.svelte';
     import { getAuthConfig, logout, getStoredToken, getUserFromToken, type AuthUser } from './ts/auth';
@@ -267,14 +267,16 @@
                     <ChatScreen />
                 {/if}
             </div>
-            <DesktopBottomNav
-                activeTab={$desktopTabStore}
-                onTabChange={(i) => {
-                    gridOpen = false;
-                    $desktopTabStore = i;
-                    if (i === 1) { gridOpen = true; }
-                }}
-            />
+            {#if $selectedCharID === -1}
+                <DesktopBottomNav
+                    activeTab={$desktopTabStore}
+                    onTabChange={(i) => {
+                        gridOpen = false;
+                        $desktopTabStore = i;
+                        if (i === 1) { gridOpen = true; }
+                    }}
+                />
+            {/if}
         </div>
     {/if}
     <AlertComp />
